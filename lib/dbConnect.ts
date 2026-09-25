@@ -22,12 +22,16 @@ async function dbConnect() {
     return cached.conn;
   }
 
+  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/forge-mvp';
+
   if (!cached.promise) {
+    console.log('[dbConnect] Connecting to MongoDB:', uri.replace(/:([^:@]+)@/, ':****@'));
     const opts = {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+    cached.promise = mongoose.connect(uri, opts).then((mongoose) => {
+      console.log('[dbConnect] Connected successfully to DB:', mongoose.connection.name);
       return mongoose;
     });
   }
