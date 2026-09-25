@@ -25,8 +25,8 @@ export default async function Home() {
   let rawProjects = await Project.find(query).sort({ createdAt: -1 }).lean();
 
   // If active org has 0 projects, but projects exist with no organizationId (legacy),
-  // and this is the default agency (Luminior Studio), optionally display them or keep strict
-  if (rawProjects.length === 0 && session?.organization?.slug === 'luminior-studio') {
+  // and this is the default agency (Parker Studio), optionally display them or keep strict
+  if (rawProjects.length === 0 && session?.organization?.slug === 'parker-studio') {
     const unassigned = await Project.find({ organizationId: { $exists: false } }).sort({ createdAt: -1 }).lean();
     if (unassigned.length > 0) {
       rawProjects = unassigned;

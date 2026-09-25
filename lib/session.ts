@@ -60,8 +60,8 @@ export async function getSession(): Promise<SessionContext | null> {
   }
 
   if (!organization) {
-    // Default to Luminior Studio or first created agency
-    organization = await Organization.findOne({ slug: 'luminior-studio' }).lean();
+    // Default to Parker Studio or first created agency
+    organization = await Organization.findOne({ slug: 'parker-studio' }).lean();
     if (!organization) {
       organization = await Organization.findOne().sort({ createdAt: 1 }).lean();
     }
@@ -79,7 +79,7 @@ export async function getSession(): Promise<SessionContext | null> {
 
   if (!user) {
     // Default to Shreya Parkar or first user
-    user = await User.findOne({ email: 'shreya@luminior.studio' }).lean();
+    user = await User.findOne({ email: 'shreya@parker.studio' }).lean();
     if (!user) {
       user = await User.findOne().sort({ createdAt: 1 }).lean();
     }

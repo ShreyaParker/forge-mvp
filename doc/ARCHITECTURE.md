@@ -423,10 +423,10 @@ Populates MongoDB Atlas with a complete multi-tenant dataset:
   2. `Alex Rivera` (Product Lead & Strategist)
   3. `Marcus Chen` (Lead Dev & DevOps)
 - **2 Organizations:**
-  1. `Luminior Studio` (Agency workspace, 7 team members, 13 tech stack items, 6 connected API services)
+  1. `Parker Studio` (Agency workspace, 7 team members, 13 tech stack items, 6 connected API services)
   2. `Solo Lab` (Individual workspace for rapid prototyping)
 - **4 Memberships:** Multi-workspace memberships linking users to organizations with roles and availability.
-- **3 Projects linked to Luminior Studio:**
+- **3 Projects linked to Parker Studio:**
   1. `Nova Flagship Experience` (Ready for Dev, 100% readiness, full DNA, 5-layer tech decisions, 6 tasks assigned to team members).
   2. `Apex Fleet Telematics` (Analyzed, 100% readiness, IoT telematics DNA, time-series DB, tasks).
   3. `Zeta Flow Engine` (Draft, 73% readiness, HR workflow builder DNA).

@@ -40,7 +40,7 @@ async function seed() {
   console.log('Creating users...');
   const shreya = await User.create({
     name: 'Shreya Parkar',
-    email: 'shreya@luminior.studio',
+    email: 'shreya@parker.studio',
     bio: 'Full Stack & AI Engineer leading architectural strategy and generative AI pipelines.',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
     skills: [
@@ -56,7 +56,7 @@ async function seed() {
 
   const alex = await User.create({
     name: 'Alex Rivera',
-    email: 'alex@luminior.studio',
+    email: 'alex@parker.studio',
     bio: 'Product Lead & Digital Strategist bridging business goals and system roadmaps.',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
     skills: [
@@ -70,7 +70,7 @@ async function seed() {
 
   const marcus = await User.create({
     name: 'Marcus Chen',
-    email: 'marcus@luminior.studio',
+    email: 'marcus@parker.studio',
     bio: 'Lead Developer & DevOps Specialist focused on resilient cloud infrastructure.',
     avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
     skills: [
@@ -88,13 +88,13 @@ async function seed() {
 
   // 2. Create Organizations
   console.log('Creating organizations...');
-  const luminiorStudio = await Organization.create({
-    name: 'Luminior Studio',
-    slug: 'luminior-studio',
+  const parkerStudio = await Organization.create({
+    name: 'Parker Studio',
+    slug: 'parker-studio',
     workspaceType: 'Agency',
     teamSize: 7,
     description: 'Elite AI & digital product engineering agency building next-generation web and intelligent systems.',
-    website: 'https://luminior.studio',
+    website: 'https://parker.studio',
     industry: 'Digital Product & AI Consultancy',
     services: ['Web Dev', 'AI Apps', 'E-commerce', 'Cloud Architecture', 'Product Design'],
     specializations: ['Generative AI Integration', 'High-Performance E-commerce', 'Full-Stack Architecture'],
@@ -145,13 +145,13 @@ async function seed() {
     ],
   });
 
-  console.log(`Created 2 organizations: ${luminiorStudio.name} (Agency), ${soloLab.name} (Individual)`);
+  console.log(`Created 2 organizations: ${parkerStudio.name} (Agency), ${soloLab.name} (Individual)`);
 
   // 3. Create Memberships
   console.log('Creating memberships...');
   await Membership.create({
     userId: shreya._id,
-    organizationId: luminiorStudio._id,
+    organizationId: parkerStudio._id,
     role: 'Owner',
     availability: 'Available',
     customPermissions: [],
@@ -159,7 +159,7 @@ async function seed() {
 
   await Membership.create({
     userId: alex._id,
-    organizationId: luminiorStudio._id,
+    organizationId: parkerStudio._id,
     role: 'Strategist',
     availability: 'Partially Allocated',
     customPermissions: [],
@@ -167,7 +167,7 @@ async function seed() {
 
   await Membership.create({
     userId: marcus._id,
-    organizationId: luminiorStudio._id,
+    organizationId: parkerStudio._id,
     role: 'Developer',
     availability: 'Available',
     customPermissions: [],
@@ -182,10 +182,10 @@ async function seed() {
     customPermissions: [],
   });
 
-  console.log('Created memberships for Luminior Studio and Solo Lab');
+  console.log('Created memberships for Parker Studio and Solo Lab');
 
-  // 4. Attach Projects to Luminior Studio
-  console.log('Creating projects attached to Luminior Studio...');
+  // 4. Attach Projects to Parker Studio
+  console.log('Creating projects attached to Parker Studio...');
   const agencyTeam = [
     { userId: shreya._id, role: 'Owner', assignedAt: new Date() },
     { userId: alex._id, role: 'Strategist', assignedAt: new Date() },
@@ -194,7 +194,7 @@ async function seed() {
 
   const projects = [
     {
-      organizationId: luminiorStudio._id,
+      organizationId: parkerStudio._id,
       team: agencyTeam,
       basicInfo: {
         name: 'Nova Flagship Experience',
@@ -366,7 +366,7 @@ async function seed() {
       ],
     },
     {
-      organizationId: luminiorStudio._id,
+      organizationId: parkerStudio._id,
       team: agencyTeam,
       basicInfo: {
         name: 'Apex Fleet Telematics',
@@ -496,7 +496,7 @@ async function seed() {
       ],
     },
     {
-      organizationId: luminiorStudio._id,
+      organizationId: parkerStudio._id,
       team: agencyTeam,
       basicInfo: {
         name: 'Zeta Flow Engine',
@@ -584,7 +584,7 @@ async function seed() {
     await Project.create({ ...p, readinessScore: score });
   }
 
-  console.log(`Successfully seeded ${projects.length} projects linked to Luminior Studio!`);
+  console.log(`Successfully seeded ${projects.length} projects linked to Parker Studio!`);
   console.log('Seed completed successfully.');
   await mongoose.disconnect();
 }

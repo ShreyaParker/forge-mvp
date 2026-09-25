@@ -85,7 +85,7 @@ The strategic objective of Forge is to establish the industry-standard **AI Oper
   - `POST /api/projects` bound to active workspace with permission check (`projects:create`).
   - Scoped project deletion via `DELETE /api/projects/:id` with `projects:delete` permission check.
 - [x] **Multi-Tenant Seed Dataset:**
-  - Seed script updated with 3 users, 2 organizations (`Luminior Studio` & `Solo Lab`), memberships, and 3 scoped demo projects.
+  - Seed script updated with 3 users, 2 organizations (`Parker Studio` & `Solo Lab`), memberships, and 3 scoped demo projects.
 
 ---
 
