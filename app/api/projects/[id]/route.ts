@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '../../../../lib/dbConnect';
 import Project, { normalizeProject } from '../../../../models/Project';
-import { calculateReadiness } from '../../../../lib/utils';
+import { calculateReadiness, computeDeliveryEstimate } from '../../../../lib/utils';
 import { getSession, checkPermission } from '../../../../lib/session';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -192,6 +192,96 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           break;
         }
 
+        case 'FEATURE_TASK_TOGGLE': {
+          const { featureId, taskId, status } = body.data || {};
+          if (Array.isArray(project.features)) {
+            for (const feat of project.features) {
+              if (!featureId || feat.id === featureId) {
+                const t = feat.tasks.find((task: any) => task.id === taskId);
+                if (t && status) {
+                  t.status = status;
+                  project.markModified('features');
+                  break;
+                }
+              }
+            }
+          }
+          if (Array.isArray(project.tasks)) {
+            const t = project.tasks.find((task: any) => task.id === taskId);
+            if (t && status) {
+              t.status = status;
+              project.markModified('tasks');
+            }
+          }
+          break;
+        }
+
+        case 'FEATURE_TASK_ASSIGN': {
+          const { featureId, taskId, assignedUserId, assignedRole } = body.data || {};
+          if (Array.isArray(project.features)) {
+            for (const feat of project.features) {
+              if (!featureId || feat.id === featureId) {
+                const t = feat.tasks.find((task: any) => task.id === taskId);
+                if (t) {
+                  if (assignedUserId !== undefined) t.assignedUserId = assignedUserId;
+                  if (assignedRole !== undefined) t.assignedRole = assignedRole;
+                  project.markModified('features');
+                  break;
+                }
+              }
+            }
+          }
+          if (Array.isArray(project.tasks)) {
+            const t = project.tasks.find((task: any) => task.id === taskId);
+            if (t) {
+              if (assignedUserId !== undefined) t.assignedUserId = assignedUserId;
+              if (assignedRole !== undefined) t.ownerRole = assignedRole;
+              project.markModified('tasks');
+            }
+          }
+          break;
+        }
+
+        case 'FEATURE_TASK_CREATE': {
+          const { featureId, title, layer, assignedRole, assignedUserId, priority, estimateDays } = body.data || {};
+          if (Array.isArray(project.features) && featureId && title) {
+            const feat = project.features.find((f: any) => f.id === featureId);
+            if (feat) {
+              const newTaskId = `task-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+              feat.tasks.push({
+                id: newTaskId,
+                title: title.trim(),
+                layer: layer || 'Frontend',
+                assignedRole: assignedRole || 'Developer',
+                assignedUserId: assignedUserId || undefined,
+                priority: priority || 'Medium',
+                estimateDays: Number(estimateDays) || 1,
+                status: 'Todo',
+              });
+              project.markModified('features');
+            }
+          }
+          break;
+        }
+
+        case 'TECH_APPROVAL_TOGGLE': {
+          const { layer, isApproved } = body.data || {};
+          if (project.technicalPlan && layer && (project.technicalPlan as any)[layer]) {
+            (project.technicalPlan as any)[layer].isApproved = Boolean(isApproved);
+            project.markModified('technicalPlan');
+          }
+          break;
+        }
+
+        case 'GUARDRAIL_MUTATE': {
+          const { always, never } = body.data || {};
+          if (!project.guardrails) project.guardrails = { always: [], never: [] };
+          if (always !== undefined) project.guardrails.always = always;
+          if (never !== undefined) project.guardrails.never = never;
+          project.markModified('guardrails');
+          break;
+        }
+
         default:
           return NextResponse.json({ error: `Unknown mutation type: ${body.type}` }, { status: 400 });
       }
@@ -200,7 +290,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       Object.assign(project, body);
     }
 
-    // Always recalculate readiness score on every mutation
+    // Always recalculate delivery estimate and readiness score on every mutation
+    const teamSize = project.team?.length || 2;
+    project.deliveryEstimate = computeDeliveryEstimate(project.features, teamSize);
     project.readinessScore = calculateReadiness(project);
     await project.save();
 

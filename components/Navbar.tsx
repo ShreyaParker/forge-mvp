@@ -15,6 +15,7 @@ import {
   Sparkles,
   Loader2,
 } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 interface WorkspaceItem {
   id: string;
@@ -154,45 +155,45 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="border-b border-zinc-800 bg-zinc-900/70 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           {/* Left: Brand + Workspace Switcher */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded bg-gradient-to-br from-zinc-100 to-zinc-300 text-black flex items-center justify-center font-bold text-lg shadow-[0_0_12px_rgba(255,255,255,0.15)] group-hover:scale-105 transition-transform">
+              <div className="w-8 h-8 rounded bg-gradient-to-br from-zinc-900 to-zinc-700 dark:from-zinc-100 dark:to-zinc-300 text-white dark:text-black flex items-center justify-center font-bold text-lg shadow-[0_0_12px_rgba(0,0,0,0.1)] dark:shadow-[0_0_12px_rgba(255,255,255,0.15)] group-hover:scale-105 transition-transform">
                 F
               </div>
-              <span className="font-semibold text-lg tracking-tight text-white group-hover:text-zinc-200 transition-colors">
+              <span className="font-semibold text-lg tracking-tight text-zinc-900 dark:text-white group-hover:text-zinc-600 dark:group-hover:text-zinc-200 transition-colors">
                 Forge
               </span>
             </Link>
 
-            <div className="h-5 w-[1px] bg-zinc-800" />
+            <div className="h-5 w-[1px] bg-zinc-200 dark:bg-zinc-800" />
 
             {/* Workspace Switcher */}
             <div className="relative" ref={dropdownRef}>
               <button
                 type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-800/60 hover:border-zinc-700 text-sm font-medium transition-all text-zinc-200 shadow-sm"
+                className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:border-zinc-300 dark:hover:border-zinc-700 text-sm font-medium transition-all text-zinc-800 dark:text-zinc-200 shadow-sm"
               >
-                <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center text-zinc-400">
+                <div className="w-5 h-5 rounded bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-400">
                   {session?.organization?.workspaceType === 'Individual' ? (
-                    <User size={12} className="text-sky-400" />
+                    <User size={12} className="text-sky-500 dark:text-sky-400" />
                   ) : (
-                    <Building2 size={12} className="text-zinc-300" />
+                    <Building2 size={12} className="text-zinc-600 dark:text-zinc-300" />
                   )}
                 </div>
 
-                <span className="max-w-[140px] truncate text-white">
+                <span className="max-w-[140px] truncate text-zinc-900 dark:text-white">
                   {session?.organization?.name || 'Loading...'}
                 </span>
 
                 <span
                   className={`text-[10px] px-1.5 py-0.5 rounded font-mono uppercase tracking-wider ${
                     session?.organization?.workspaceType === 'Individual'
-                      ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
-                      : 'bg-zinc-800 text-zinc-400 border border-zinc-700/50'
+                      ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20'
+                      : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700/50'
                   }`}
                 >
                   {session?.organization?.workspaceType || 'Agency'}
@@ -270,8 +271,8 @@ export default function Navbar() {
                 href="/"
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   isProjectsActive
-                    ? 'text-white bg-zinc-800/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
+                    ? 'text-zinc-950 dark:text-white bg-zinc-200/80 dark:bg-zinc-800/70 font-semibold'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/40'
                 }`}
               >
                 Projects
@@ -279,9 +280,9 @@ export default function Navbar() {
               <Link
                 href="/organization"
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/organization'
-                    ? 'text-white bg-zinc-800/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
+                  pathname === '/organization' && (typeof window === 'undefined' || !window.location.search.includes('tab=tech'))
+                    ? 'text-zinc-950 dark:text-white bg-zinc-200/80 dark:bg-zinc-800/70 font-semibold'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/40'
                 }`}
               >
                 Organization
@@ -290,8 +291,8 @@ export default function Navbar() {
                 href="/organization?tab=tech"
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                   pathname === '/organization' && typeof window !== 'undefined' && window.location.search.includes('tab=tech')
-                    ? 'text-white bg-zinc-800/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
+                    ? 'text-zinc-950 dark:text-white bg-zinc-200/80 dark:bg-zinc-800/70 font-semibold'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/40'
                 }`}
               >
                 Agency Stack
@@ -299,15 +300,17 @@ export default function Navbar() {
             </nav>
           </div>
 
-          {/* Right: User Profile & Role */}
+          {/* Right: Theme Toggle & User Profile */}
           <div className="flex items-center gap-3">
+            <ThemeToggle />
+
             {session?.user && (
-              <div className="flex items-center gap-2.5 pl-3 py-1 bg-zinc-900/50 rounded-full border border-zinc-800/80 pr-2">
+              <div className="flex items-center gap-2.5 pl-3 py-1 bg-zinc-100 dark:bg-zinc-900/50 rounded-full border border-zinc-200 dark:border-zinc-800/80 pr-2">
                 <div className="text-right hidden sm:block">
-                  <div className="text-xs font-medium text-white leading-tight">
+                  <div className="text-xs font-medium text-zinc-900 dark:text-white leading-tight">
                     {session.user.name}
                   </div>
-                  <div className="text-[10px] text-zinc-400 font-mono">
+                  <div className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
                     {session.membership?.role || 'Member'}
                   </div>
                 </div>

@@ -53,6 +53,7 @@ const techLayerZod = z.object({
   recommendation: z.string(),
   rationale: z.string(),
   isApproved: z.boolean().optional().default(false),
+  capabilityMatch: z.string().optional().default(''),
 });
 
 export const technicalPlanSchema = z.object({
@@ -63,11 +64,13 @@ export const technicalPlanSchema = z.object({
     recommendation: 'NextAuth.js / Auth.js',
     rationale: 'Secure session handling and OAuth provider integration.',
     isApproved: false,
+    capabilityMatch: '',
   }),
   infrastructure: techLayerZod.optional().default({
     recommendation: 'Vercel + MongoDB Atlas',
     rationale: 'Serverless deployment with managed database resilience.',
     isApproved: false,
+    capabilityMatch: '',
   }),
   integrations: z.array(
     z.object({
@@ -89,3 +92,29 @@ export const tasksSchema = z.array(
     status: z.enum(['Todo', 'In Progress', 'Done']),
   })
 );
+
+export const featureTaskZod = z.object({
+  id: z.string(),
+  title: z.string(),
+  layer: z.enum(['Requirements', 'Design', 'Frontend', 'Backend', 'AI', 'Testing', 'Deployment']),
+  assignedRole: z.string().default('Developer'),
+  estimateDays: z.number().default(1),
+  priority: z.enum(['Low', 'Medium', 'High']).default('Medium'),
+  status: z.enum(['Todo', 'In Progress', 'Done']).default('Todo'),
+});
+
+export const projectFeatureSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().default(''),
+  status: z.enum(['Planned', 'In Development', 'Testing', 'Completed']).default('Planned'),
+  tasks: z.array(featureTaskZod).default([]),
+});
+
+export const featuresListSchema = z.array(projectFeatureSchema);
+
+export const gitDriftSchema = z.object({
+  driftScore: z.number().min(0).max(100),
+  insights: z.array(z.string()),
+  dormantFeatures: z.array(z.string()),
+});

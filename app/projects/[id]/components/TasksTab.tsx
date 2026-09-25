@@ -1,573 +1,457 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   ListTodo, CheckCircle2, Circle, Clock, Plus, Trash2, 
-  Edit3, Save, X, Calendar, User, ChevronRight, Loader2, Sparkles
+  Edit3, Save, X, Calendar, User, ChevronRight, Loader2, 
+  Sparkles, CheckSquare, Square, Layers, AlertTriangle, ShieldCheck
 } from 'lucide-react';
-import { IProjectTask } from '../../../../models/Project';
+import { IProjectFeature, IFeatureTask } from '../../../../models/Project';
+
+interface OrgMember {
+  userId: string;
+  name: string;
+  role?: string;
+  avatarUrl?: string;
+}
 
 interface TasksTabProps {
   project: any;
+  orgMembers?: OrgMember[];
   onMutate: (payload: { type: string; data: any }) => Promise<void>;
   isSubmitting?: boolean;
 }
 
-export function TasksTab({ project, onMutate, isSubmitting = false }: TasksTabProps) {
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editOwnerRole, setEditOwnerRole] = useState('');
-  const [editPriority, setEditPriority] = useState('Medium');
-  const [editEstimateDays, setEditEstimateDays] = useState(1);
-  const [editEpic, setEditEpic] = useState('');
+const LAYER_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  Requirements: { bg: 'bg-purple-500/10', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500/20' },
+  Design: { bg: 'bg-pink-500/10', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-500/20' },
+  Frontend: { bg: 'bg-cyan-500/10', text: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-500/20' },
+  Backend: { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20' },
+  AI: { bg: 'bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-500/20' },
+  Testing: { bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/20' },
+  Deployment: { bg: 'bg-rose-500/10', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-500/20' },
+};
 
-  // Add task state
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [targetEpic, setTargetEpic] = useState('');
-  const [newTitle, setNewTitle] = useState('');
-  const [newOwnerRole, setNewOwnerRole] = useState('Frontend Eng');
-  const [newPriority, setNewPriority] = useState('Medium');
-  const [newEstimateDays, setNewEstimateDays] = useState(2);
-  const [isAdding, setIsAdding] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+const FEATURE_STATUS_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  Planned: { bg: 'bg-zinc-500/10', text: 'text-zinc-600 dark:text-zinc-400', border: 'border-zinc-500/20' },
+  'In Development': { bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/20' },
+  Testing: { bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/20' },
+  Completed: { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20' },
+};
 
-  const tasks: IProjectTask[] = project.tasks || [];
+export function TasksTab({ project, orgMembers = [], onMutate, isSubmitting = false }: TasksTabProps) {
+  const [activeFeatureIdForNewTask, setActiveFeatureIdForNewTask] = useState<string | null>(null);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskLayer, setNewTaskLayer] = useState<'Requirements' | 'Design' | 'Frontend' | 'Backend' | 'AI' | 'Testing' | 'Deployment'>('Frontend');
+  const [newTaskRole, setNewTaskRole] = useState('Frontend Engineer');
+  const [newTaskEstimate, setNewTaskEstimate] = useState(2);
+  const [newTaskPriority, setNewTaskPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [mutatingTaskId, setMutatingTaskId] = useState<string | null>(null);
 
-  if (tasks.length === 0) {
+  const features: IProjectFeature[] = project.features || [];
+  const deliveryEstimate = project.deliveryEstimate || {
+    totalDays: 0,
+    allocatedTeamSize: 3,
+    estimatedWeeks: 0,
+    riskNotes: [],
+  };
+
+  // Flattened tasks metric calculations
+  const allTasks: IFeatureTask[] = features.flatMap(f => f.tasks || []);
+  const completedTasks = allTasks.filter(t => t.status === 'Done');
+  const inProgressTasks = allTasks.filter(t => t.status === 'In Progress');
+  const progressPercent = allTasks.length > 0 ? Math.round((completedTasks.length / allTasks.length) * 100) : 0;
+
+  const handleToggleTask = async (featureId: string, taskId: string) => {
+    setMutatingTaskId(taskId);
+    try {
+      await onMutate({
+        type: 'FEATURE_TASK_TOGGLE',
+        data: { featureId, taskId },
+      });
+    } finally {
+      setMutatingTaskId(null);
+    }
+  };
+
+  const handleAssignTask = async (featureId: string, taskId: string, assignedUserId: string) => {
+    setMutatingTaskId(taskId);
+    try {
+      const selectedMember = orgMembers.find(m => m.userId === assignedUserId);
+      await onMutate({
+        type: 'FEATURE_TASK_ASSIGN',
+        data: {
+          featureId,
+          taskId,
+          assignedUserId: assignedUserId || undefined,
+          assignedRole: selectedMember?.role || 'Engineer',
+        },
+      });
+    } finally {
+      setMutatingTaskId(null);
+    }
+  };
+
+  const handleCreateTask = async (e: React.FormEvent, featureId: string) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+
+    setIsAddingTask(true);
+    try {
+      await onMutate({
+        type: 'FEATURE_TASK_CREATE',
+        data: {
+          featureId,
+          title: newTaskTitle.trim(),
+          layer: newTaskLayer,
+          assignedRole: newTaskRole,
+          estimateDays: Number(newTaskEstimate) || 1,
+          priority: newTaskPriority,
+        },
+      });
+      setNewTaskTitle('');
+      setActiveFeatureIdForNewTask(null);
+    } finally {
+      setIsAddingTask(false);
+    }
+  };
+
+  if (features.length === 0 && (!project.tasks || project.tasks.length === 0)) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 border border-zinc-800 border-dashed rounded-xl text-center h-64 bg-zinc-900/10">
-        <div className="text-zinc-600 mb-4">
+      <div className="flex flex-col items-center justify-center p-12 border border-zinc-200 dark:border-zinc-800 border-dashed rounded-xl text-center h-64 bg-zinc-50 dark:bg-zinc-900/10">
+        <div className="text-zinc-400 dark:text-zinc-600 mb-4">
           <ListTodo size={40} />
         </div>
-        <p className="text-zinc-400 font-medium mb-4">No tasks found. Generate tasks or add custom tasks manually.</p>
-        <button
-          type="button"
-          onClick={() => {
-            setTargetEpic('General');
-            setShowAddModal(true);
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black rounded-md text-xs font-semibold hover:bg-zinc-200 transition-colors"
-        >
-          <Plus size={14} /> Add First Custom Task
-        </button>
+        <p className="text-zinc-600 dark:text-zinc-400 font-medium mb-4">
+          No feature work breakdown found. Click "Breakdown Tasks" above to generate feature tasks.
+        </p>
       </div>
     );
   }
 
-  // Group tasks by Epic
-  const epics = Array.from(new Set(tasks.map(t => t.epic || 'General')));
-  const completedTasks = tasks.filter(t => t.status === 'Done');
-  const inProgressTasks = tasks.filter(t => t.status === 'In Progress');
-  const totalDays = tasks.reduce((sum, t) => sum + (Number(t.estimateDays) || 0), 0);
-  const progressPercent = Math.round((completedTasks.length / tasks.length) * 100);
-
-  const toggleTaskStatus = async (taskId: string, currentStatus: string) => {
-    const nextStatusMap: Record<string, 'Todo' | 'In Progress' | 'Done'> = {
-      Todo: 'In Progress',
-      'In Progress': 'Done',
-      Done: 'Todo',
-    };
-    const nextStatus = nextStatusMap[currentStatus] || 'Todo';
-    await onMutate({
-      type: 'TASK_UPDATE',
-      data: { taskId, status: nextStatus },
-    });
-  };
-
-  const startEditTask = (task: IProjectTask) => {
-    setEditingTaskId(task.id);
-    setEditTitle(task.title);
-    setEditOwnerRole(task.ownerRole);
-    setEditPriority(task.priority);
-    setEditEstimateDays(task.estimateDays);
-    setEditEpic(task.epic);
-  };
-
-  const saveEditTask = async (taskId: string) => {
-    await onMutate({
-      type: 'TASK_UPDATE',
-      data: {
-        taskId,
-        title: editTitle.trim(),
-        ownerRole: editOwnerRole,
-        priority: editPriority,
-        estimateDays: Number(editEstimateDays),
-        epic: editEpic.trim(),
-      },
-    });
-    setEditingTaskId(null);
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
-    setDeletingId(taskId);
-    try {
-      await onMutate({
-        type: 'TASK_DELETE',
-        data: { taskId },
-      });
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    setIsAdding(true);
-    try {
-      await onMutate({
-        type: 'TASK_CREATE',
-        data: {
-          epic: targetEpic.trim() || 'General',
-          title: newTitle.trim(),
-          ownerRole: newOwnerRole,
-          priority: newPriority,
-          estimateDays: Number(newEstimateDays) || 1,
-          status: 'Todo',
-        },
-      });
-      setNewTitle('');
-      setShowAddModal(false);
-    } finally {
-      setIsAdding(false);
-    }
-  };
-
-  const openAddTaskForEpic = (epicName: string) => {
-    setTargetEpic(epicName);
-    setNewTitle('');
-    setShowAddModal(true);
-  };
-
-  const getPriorityBadgeClass = (priority: string) => {
-    switch (priority?.toLowerCase()) {
-      case 'high':
-        return 'bg-red-500/10 text-red-400 border-red-500/20';
-      case 'medium':
-        return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'low':
-        return 'bg-zinc-800 text-zinc-400 border-zinc-700';
-      default:
-        return 'bg-zinc-800 text-zinc-400 border-zinc-700';
-    }
-  };
-
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      {/* Dev Board Header & Stats */}
-      <section className="border border-zinc-800 rounded-xl p-6 bg-zinc-900/40">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      {/* SECTION 1: DELIVERY ESTIMATE & SPRINT HORIZON METRICS */}
+      <section className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 bg-white dark:bg-zinc-900/40 shadow-sm">
+        <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-6 mb-6 pb-6 border-b border-zinc-200 dark:border-zinc-800">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <ListTodo size={20} className="text-zinc-400" />
-              <h3 className="text-lg font-semibold text-white">Engineering Execution Backlog</h3>
+              <Sparkles size={18} className="text-amber-500" />
+              <h3 className="text-lg font-bold text-zinc-950 dark:text-white">
+                Delivery Horizon & Velocity Metrics
+              </h3>
             </div>
-            <p className="text-xs text-zinc-400">
-              Interactive sprint board with role allocation, effort estimates, and real-time status tracking.
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Live capacity model: <code>totalDays / (teamSize × 0.75 focus × 5 days)</code>
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => openAddTaskForEpic(epics[0] || 'General')}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black hover:bg-zinc-200 rounded-md text-xs font-semibold transition-colors shadow-sm"
-            >
-              <Plus size={14} /> Add Custom Task
-            </button>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Total Dev Days */}
+            <div className="bg-zinc-50 dark:bg-zinc-950/80 p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <span className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold block mb-0.5">
+                Total Effort
+              </span>
+              <div className="text-xl font-extrabold text-zinc-950 dark:text-white font-mono">
+                {deliveryEstimate.totalDays} <span className="text-xs text-zinc-400 font-normal">days</span>
+              </div>
+            </div>
+
+            {/* Team Capacity */}
+            <div className="bg-zinc-50 dark:bg-zinc-950/80 p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <span className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold block mb-0.5">
+                Team Size
+              </span>
+              <div className="text-xl font-extrabold text-zinc-950 dark:text-white font-mono">
+                {deliveryEstimate.allocatedTeamSize} <span className="text-xs text-zinc-400 font-normal">devs</span>
+              </div>
+            </div>
+
+            {/* Delivery Horizon */}
+            <div className="bg-zinc-50 dark:bg-zinc-950/80 p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <span className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold block mb-0.5">
+                Delivery Est.
+              </span>
+              <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+                {deliveryEstimate.estimatedWeeks} <span className="text-xs text-zinc-400 font-normal">wks</span>
+              </div>
+            </div>
+
+            {/* Progress */}
+            <div className="bg-zinc-50 dark:bg-zinc-950/80 p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <span className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold block mb-0.5">
+                Completion
+              </span>
+              <div className="text-xl font-extrabold text-zinc-950 dark:text-white font-mono">
+                {progressPercent}%
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Sprint Metrics Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-zinc-800">
-          <div className="bg-zinc-950/60 p-3.5 rounded-lg border border-zinc-800/80">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 block mb-1">
-              Total Backlog
-            </span>
-            <span className="text-xl font-bold text-white font-mono">{tasks.length}</span>
-            <span className="text-xs text-zinc-500 ml-1.5">tasks</span>
+        {/* Risk Notes Pill */}
+        {deliveryEstimate.riskNotes && deliveryEstimate.riskNotes.length > 0 && (
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5">
+            <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-zinc-800 dark:text-zinc-200">
+              <span className="font-semibold text-amber-600 dark:text-amber-400 mr-2">Delivery Risk Factors:</span>
+              {deliveryEstimate.riskNotes.join(' • ')}
+            </div>
           </div>
-
-          <div className="bg-zinc-950/60 p-3.5 rounded-lg border border-zinc-800/80">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 block mb-1">
-              Completed
-            </span>
-            <span className="text-xl font-bold text-emerald-400 font-mono">{completedTasks.length}</span>
-            <span className="text-xs text-zinc-500 ml-1.5">({progressPercent}%)</span>
-          </div>
-
-          <div className="bg-zinc-950/60 p-3.5 rounded-lg border border-zinc-800/80">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 block mb-1">
-              In Progress
-            </span>
-            <span className="text-xl font-bold text-blue-400 font-mono">{inProgressTasks.length}</span>
-            <span className="text-xs text-zinc-500 ml-1.5">active</span>
-          </div>
-
-          <div className="bg-zinc-950/60 p-3.5 rounded-lg border border-zinc-800/80">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 block mb-1">
-              Total Effort
-            </span>
-            <span className="text-xl font-bold text-white font-mono">{totalDays}</span>
-            <span className="text-xs text-zinc-500 ml-1.5">engineer days</span>
-          </div>
-        </div>
+        )}
       </section>
 
-      {/* Epics Columns / Groups */}
+      {/* SECTION 2: FEATURE-FIRST EXECUTION BOARD */}
       <section className="space-y-6">
-        {epics.map(epic => {
-          const epicTasks = tasks.filter(t => t.epic === epic);
-          const epicDone = epicTasks.filter(t => t.status === 'Done').length;
-          const epicTotalDays = epicTasks.reduce((s, t) => s + (Number(t.estimateDays) || 0), 0);
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-base font-bold text-zinc-950 dark:text-white">
+              Feature-First Execution Board ({features.length} Features, {allTasks.length} Tasks)
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Features decompose into multi-layered tasks assigned to agency specialists.
+            </p>
+          </div>
+        </div>
+
+        {features.map((feature, fIndex) => {
+          const featureStatusStyle = FEATURE_STATUS_STYLES[feature.status] || FEATURE_STATUS_STYLES.Planned;
+          const featureTasks = feature.tasks || [];
+          const featureCompleted = featureTasks.filter(t => t.status === 'Done').length;
+          const featurePercent = featureTasks.length > 0 ? Math.round((featureCompleted / featureTasks.length) * 100) : 0;
+          const isAddingToThis = activeFeatureIdForNewTask === feature.id;
 
           return (
-            <div key={epic} className="border border-zinc-800 rounded-xl overflow-hidden shadow-sm">
-              {/* Epic Column Header with Add Task Button */}
-              <div className="bg-zinc-900 px-6 py-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-zinc-800">
-                <div className="flex items-center gap-3">
-                  <span className="w-2.5 h-2.5 rounded bg-zinc-400" />
-                  <h4 className="font-semibold text-white text-sm tracking-wide">
-                    Epic: <span className="text-zinc-200">{epic}</span>
-                  </h4>
-                  <span className="text-xs font-mono text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
-                    {epicDone}/{epicTasks.length} Done • {epicTotalDays}d
-                  </span>
+            <div
+              key={feature.id || fIndex}
+              className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900/40 shadow-sm"
+            >
+              {/* Feature Header */}
+              <div className="p-5 border-b border-zinc-200 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-zinc-50 dark:bg-zinc-950/40">
+                <div>
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <h4 className="font-bold text-zinc-950 dark:text-white text-base">
+                      {feature.name}
+                    </h4>
+                    <span
+                      className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border ${featureStatusStyle.bg} ${featureStatusStyle.text} ${featureStatusStyle.border}`}
+                    >
+                      {feature.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-2xl">
+                    {feature.description}
+                  </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => openAddTaskForEpic(epic)}
-                  className="text-xs font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors border border-zinc-700/60"
-                >
-                  <Plus size={13} /> Add Task
-                </button>
+                <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                  {/* Progress Pill */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-zinc-500">
+                      {featureCompleted}/{featureTasks.length} Done ({featurePercent}%)
+                    </span>
+                    <div className="w-16 bg-zinc-200 dark:bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-emerald-500 h-full transition-all duration-300"
+                        style={{ width: `${featurePercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveFeatureIdForNewTask(isAddingToThis ? null : feature.id)}
+                    className="px-3 py-1 bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-md text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Plus size={12} />
+                    {isAddingToThis ? 'Close' : 'Add Task'}
+                  </button>
+                </div>
               </div>
 
-              {/* Task Items in Epic */}
-              <div className="divide-y divide-zinc-800/60 bg-zinc-900/20">
-                {epicTasks.map(task => {
-                  const isEditing = editingTaskId === task.id;
-                  const isDone = task.status === 'Done';
-                  const isInProgress = task.status === 'In Progress';
-                  const isDeleting = deletingId === task.id;
-
-                  if (isEditing) {
-                    return (
-                      <div key={task.id} className="p-4 bg-zinc-950/90 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs font-bold text-zinc-400">Editing {task.id}</span>
-                          <button
-                            type="button"
-                            onClick={() => setEditingTaskId(null)}
-                            className="text-zinc-500 hover:text-white p-1"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                          <div className="md:col-span-2">
-                            <label className="block text-[11px] font-semibold text-zinc-500 uppercase mb-1">
-                              Task Title
-                            </label>
-                            <input
-                              type="text"
-                              value={editTitle}
-                              onChange={e => setEditTitle(e.target.value)}
-                              className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-semibold text-zinc-500 uppercase mb-1">
-                              Owner Role
-                            </label>
-                            <select
-                              value={editOwnerRole}
-                              onChange={e => setEditOwnerRole(e.target.value)}
-                              className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                            >
-                              <option value="Frontend Eng">Frontend Eng</option>
-                              <option value="Backend Eng">Backend Eng</option>
-                              <option value="Full Stack">Full Stack</option>
-                              <option value="DevOps">DevOps</option>
-                              <option value="QA Eng">QA Eng</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-semibold text-zinc-500 uppercase mb-1">
-                              Priority
-                            </label>
-                            <select
-                              value={editPriority}
-                              onChange={e => setEditPriority(e.target.value)}
-                              className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                            >
-                              <option value="High">High</option>
-                              <option value="Medium">Medium</option>
-                              <option value="Low">Low</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-semibold text-zinc-500 uppercase mb-1">
-                              Epic
-                            </label>
-                            <input
-                              type="text"
-                              value={editEpic}
-                              onChange={e => setEditEpic(e.target.value)}
-                              className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-semibold text-zinc-500 uppercase mb-1">
-                              Estimate (Days)
-                            </label>
-                            <input
-                              type="number"
-                              min="0.5"
-                              step="0.5"
-                              value={editEstimateDays}
-                              onChange={e => setEditEstimateDays(parseFloat(e.target.value) || 1)}
-                              className="w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-end gap-2 pt-2">
-                          <button
-                            type="button"
-                            onClick={() => setEditingTaskId(null)}
-                            className="px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => saveEditTask(task.id)}
-                            className="px-4 py-1 bg-white text-black hover:bg-zinc-200 rounded text-xs font-semibold flex items-center gap-1.5"
-                          >
-                            <Save size={12} /> Save Task
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={task.id}
-                      className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-zinc-800/30 transition-colors group"
+              {/* Add Task Form to this Feature */}
+              {isAddingToThis && (
+                <form
+                  onSubmit={e => handleCreateTask(e, feature.id)}
+                  className="p-4 bg-zinc-100/60 dark:bg-zinc-950/80 border-b border-zinc-200 dark:border-zinc-800 space-y-3"
+                >
+                  <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                    Create New Layered Task in {feature.name}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="sm:col-span-2">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Task title (e.g. Implement WebGL 3D model canvas)"
+                        value={newTaskTitle}
+                        onChange={e => setNewTaskTitle(e.target.value)}
+                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-1.5 text-xs text-zinc-950 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      />
+                    </div>
+                    <div>
+                      <select
+                        value={newTaskLayer}
+                        onChange={e => setNewTaskLayer(e.target.value as any)}
+                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none"
+                      >
+                        {['Requirements', 'Design', 'Frontend', 'Backend', 'AI', 'Testing', 'Deployment'].map(layer => (
+                          <option key={layer} value={layer}>{layer}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        min={0.5}
+                        step={0.5}
+                        value={newTaskEstimate}
+                        onChange={e => setNewTaskEstimate(Number(e.target.value))}
+                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-1.5 text-xs text-zinc-950 dark:text-white focus:outline-none"
+                        placeholder="Est. Days"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveFeatureIdForNewTask(null)}
+                      className="px-3 py-1 text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-white"
                     >
-                      {/* Left: Checkbox & Title */}
-                      <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => toggleTaskStatus(task.id, task.status)}
-                          aria-label={`Toggle status for ${task.id}`}
-                          className={`mt-0.5 sm:mt-0 transition-colors cursor-pointer ${
-                            isDone ? 'text-emerald-500' : isInProgress ? 'text-blue-500' : 'text-zinc-600 hover:text-zinc-400'
-                          }`}
-                        >
-                          {isDone ? (
-                            <CheckCircle2 size={19} />
-                          ) : (
-                            <Circle size={19} className={isInProgress ? 'fill-blue-500/20' : ''} />
-                          )}
-                        </button>
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isAddingTask || !newTaskTitle.trim()}
+                      className="px-4 py-1 bg-zinc-900 text-white dark:bg-white dark:text-black rounded-md text-xs font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50"
+                    >
+                      {isAddingTask ? <Loader2 size={12} className="animate-spin" /> : 'Save Task'}
+                    </button>
+                  </div>
+                </form>
+              )}
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="font-mono text-xs text-zinc-500 font-semibold">{task.id}</span>
-                            <span
-                              className={`text-sm font-medium transition-colors ${
-                                isDone ? 'text-zinc-500 line-through' : 'text-zinc-200 group-hover:text-white'
+              {/* Tasks List */}
+              <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                {featureTasks.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-zinc-400 italic">
+                    No tasks decomposed for this feature yet.
+                  </div>
+                ) : (
+                  featureTasks.map(task => {
+                    const layerStyle = LAYER_STYLES[task.layer] || LAYER_STYLES.Frontend;
+                    const isDone = task.status === 'Done';
+                    const isInProgress = task.status === 'In Progress';
+                    const isMutating = mutatingTaskId === task.id;
+
+                    // Resolve current assigned user
+                    const assignedUserIdStr = task.assignedUserId
+                      ? (typeof task.assignedUserId === 'object' ? (task.assignedUserId as any)._id?.toString() || (task.assignedUserId as any).id : task.assignedUserId.toString())
+                      : '';
+
+                    return (
+                      <div
+                        key={task.id}
+                        className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors ${
+                          isDone ? 'opacity-65' : ''
+                        }`}
+                      >
+                        {/* Task Title & Checkbox */}
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTask(feature.id, task.id)}
+                            disabled={isMutating}
+                            className="mt-0.5 text-zinc-400 hover:text-emerald-500 transition-colors cursor-pointer flex-shrink-0"
+                            aria-label={`Toggle status for ${task.title}`}
+                          >
+                            {isMutating ? (
+                              <Loader2 size={18} className="animate-spin text-zinc-500" />
+                            ) : isDone ? (
+                              <CheckCircle2 size={18} className="text-emerald-500" />
+                            ) : isInProgress ? (
+                              <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                            ) : (
+                              <Circle size={18} />
+                            )}
+                          </button>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span
+                                className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border ${layerStyle.bg} ${layerStyle.text} ${layerStyle.border}`}
+                              >
+                                {task.layer}
+                              </span>
+                              <span
+                                className={`text-[10px] font-mono font-semibold ${
+                                  task.priority === 'High'
+                                    ? 'text-red-500'
+                                    : task.priority === 'Medium'
+                                    ? 'text-amber-500'
+                                    : 'text-zinc-500'
+                                }`}
+                              >
+                                {task.priority} Priority
+                              </span>
+                              <span className="text-[10px] font-mono text-zinc-400">
+                                {task.estimateDays}d est.
+                              </span>
+                            </div>
+
+                            <p
+                              className={`text-sm font-medium ${
+                                isDone
+                                  ? 'line-through text-zinc-400 dark:text-zinc-500'
+                                  : 'text-zinc-900 dark:text-zinc-100'
                               }`}
                             >
                               {task.title}
-                            </span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Assignee Dropdown & Role */}
+                        <div className="flex items-center gap-3 self-end sm:self-auto flex-shrink-0">
+                          <div className="flex items-center gap-2">
+                            <User size={13} className="text-zinc-400" />
+                            <select
+                              value={assignedUserIdStr}
+                              onChange={e => handleAssignTask(feature.id, task.id, e.target.value)}
+                              disabled={isMutating}
+                              className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-md px-2.5 py-1 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                            >
+                              <option value="">Unassigned</option>
+                              {orgMembers.map(m => (
+                                <option key={m.userId} value={m.userId}>
+                                  {m.name} ({m.role || 'Dev'})
+                                </option>
+                              ))}
+                            </select>
                           </div>
 
-                          <div className="flex items-center gap-2.5 text-xs text-zinc-500 flex-wrap">
-                            <span className="flex items-center gap-1">
-                              <User size={12} /> {task.ownerRole}
-                            </span>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                              <Clock size={12} /> {task.estimateDays} day{task.estimateDays === 1 ? '' : 's'}
-                            </span>
-                            <span>•</span>
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold border font-mono ${getPriorityBadgeClass(
-                                task.priority
-                              )}`}
-                            >
-                              {task.priority}
-                            </span>
+                          <div
+                            className={`text-[10px] font-mono px-2 py-0.5 rounded border font-semibold ${
+                              isDone
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                                : isInProgress
+                                ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700'
+                            }`}
+                          >
+                            {task.status}
                           </div>
                         </div>
                       </div>
-
-                      {/* Right: Status Pill & Action Triggers */}
-                      <div className="flex items-center gap-2.5 self-end sm:self-center">
-                        <button
-                          type="button"
-                          onClick={() => toggleTaskStatus(task.id, task.status)}
-                          className={`text-xs px-2.5 py-1 rounded font-medium border transition-colors cursor-pointer ${
-                            isDone
-                              ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'
-                              : isInProgress
-                              ? 'border-blue-500/30 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20'
-                              : 'border-zinc-700 text-zinc-400 bg-zinc-800 hover:bg-zinc-750'
-                          }`}
-                        >
-                          {task.status}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => startEditTask(task)}
-                          className="text-zinc-500 hover:text-white p-1 rounded transition-colors opacity-60 group-hover:opacity-100"
-                          aria-label={`Edit ${task.id}`}
-                        >
-                          <Edit3 size={14} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTask(task.id)}
-                          disabled={isDeleting}
-                          className="text-zinc-500 hover:text-red-400 p-1 rounded transition-colors opacity-60 group-hover:opacity-100 disabled:opacity-30"
-                          aria-label={`Delete ${task.id}`}
-                        >
-                          {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           );
         })}
       </section>
-
-      {/* Add Task Modal / Drawer */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 max-w-lg w-full space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center pb-3 border-b border-zinc-800">
-              <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                <Plus size={16} /> Add Engineering Task
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="text-zinc-500 hover:text-white p-1"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateTask} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">
-                  Epic / Feature Area *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={targetEpic}
-                  onChange={e => setTargetEpic(e.target.value)}
-                  placeholder="e.g. Storefront, Checkout, Architecture"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">
-                  Task Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newTitle}
-                  onChange={e => setNewTitle(e.target.value)}
-                  placeholder="e.g. Implement headless catalog search query"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">
-                    Owner Role
-                  </label>
-                  <select
-                    value={newOwnerRole}
-                    onChange={e => setNewOwnerRole(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                  >
-                    <option value="Frontend Eng">Frontend Eng</option>
-                    <option value="Backend Eng">Backend Eng</option>
-                    <option value="Full Stack">Full Stack</option>
-                    <option value="DevOps">DevOps</option>
-                    <option value="QA Eng">QA Eng</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">
-                    Priority
-                  </label>
-                  <select
-                    value={newPriority}
-                    onChange={e => setNewPriority(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                  >
-                    <option value="High">High</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Low">Low</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">
-                  Estimated Effort (Days)
-                </label>
-                <input
-                  type="number"
-                  min="0.5"
-                  step="0.5"
-                  required
-                  value={newEstimateDays}
-                  onChange={e => setNewEstimateDays(parseFloat(e.target.value) || 1)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isAdding || !newTitle.trim()}
-                  className="px-5 py-2 bg-white text-black hover:bg-zinc-200 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
-                >
-                  {isAdding ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-                  Create Task
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
