@@ -4,6 +4,8 @@
 
 Built with **Next.js 15 App Router**, **TypeScript**, **Tailwind CSS**, **MongoDB (Mongoose)**, and powered by **Google Gemini 2.5 Flash**.
 
+📖 **Complete Documentation:** [System Architecture & Codebase Reference (doc/ARCHITECTURE.md)](./doc/ARCHITECTURE.md) | [Product Masterplan & Roadmap (doc/MASTERPLAN.md)](./doc/MASTERPLAN.md)
+
 ---
 
 ## ✨ Features
