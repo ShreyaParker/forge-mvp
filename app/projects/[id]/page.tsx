@@ -1,5 +1,5 @@
 import dbConnect from '../../../lib/dbConnect';
-import Project from '../../../models/Project';
+import Project, { normalizeProject } from '../../../models/Project';
 import ClientWorkspace from './client-workspace';
 import { calculateReadiness } from '../../../lib/utils';
 import { notFound } from 'next/navigation';
@@ -17,10 +17,11 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   // Convert MongoDB document to plain JS object and calculate readiness
   const serialized = JSON.parse(JSON.stringify(projectDoc));
+  const normalized = normalizeProject(serialized);
   const project = {
-    ...serialized,
-    _id: serialized._id.toString(),
-    readinessScore: calculateReadiness(serialized),
+    ...normalized,
+    _id: normalized._id.toString(),
+    readinessScore: calculateReadiness(normalized),
   };
 
   return <ClientWorkspace initialProject={project} />;

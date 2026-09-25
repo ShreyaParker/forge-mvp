@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '../../../lib/dbConnect';
-import Project from '../../../models/Project';
+import Project, { normalizeProject } from '../../../models/Project';
+import { calculateReadiness } from '../../../lib/utils';
 
 export async function GET() {
   await dbConnect();
   try {
-    const projects = await Project.find({}).sort({ createdAt: -1 });
+    const rawProjects = await Project.find({}).sort({ createdAt: -1 });
+    const projects = rawProjects.map(p => normalizeProject(p.toObject()));
     return NextResponse.json(projects);
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
@@ -16,7 +18,7 @@ export async function POST(req: Request) {
   await dbConnect();
   try {
     const body = await req.json();
-    const project = await Project.create({
+    const newProjectData = {
       basicInfo: {
         name: body.name,
         clientName: body.clientName,
@@ -24,9 +26,23 @@ export async function POST(req: Request) {
         website: body.website,
         targetPlatforms: body.targetPlatforms || [],
       },
-      status: 'Draft',
+      dna: {
+        competitors: [],
+        references: [],
+        persistentInstructions: '',
+      },
+      guardrails: {
+        always: [],
+        never: [],
+      },
+      status: 'Draft' as const,
+    };
+    const score = calculateReadiness(newProjectData);
+    const project = await Project.create({
+      ...newProjectData,
+      readinessScore: score,
     });
-    return NextResponse.json(project, { status: 201 });
+    return NextResponse.json(normalizeProject(project.toObject()), { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
   }

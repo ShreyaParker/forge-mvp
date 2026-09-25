@@ -17,7 +17,7 @@ async function generateStructuredWithGemini<T>(
     throw new Error('GEMINI_API_KEY not configured');
   }
 
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
   
   const response = await client.models.generateContent({
     model,
@@ -64,8 +64,8 @@ Output valid JSON strictly adhering to this structure:
     "successMetrics": ["string"]
   },
   "guardrails": {
-    "always": ["string"],
-    "never": ["string"]
+    "always": [{ "id": "g-always-1", "text": "string", "source": "ai" }],
+    "never": [{ "id": "g-never-1", "text": "string", "source": "ai" }]
   },
   "aiAnalysis": {
     "summary": "string",
@@ -108,8 +108,14 @@ Output valid JSON strictly adhering to this structure:
         successMetrics: ['Reduce onboarding time by 50%', 'Increase daily active users by 20%'],
       },
       guardrails: {
-        always: ['Use accessibility best practices (WCAG 2.1 AA)', 'Ensure mobile responsiveness'],
-        never: ['Use modals for complex forms', 'Auto-play media'],
+        always: [
+          { id: 'g-always-1', text: 'Use accessibility best practices (WCAG 2.1 AA)', source: 'ai' },
+          { id: 'g-always-2', text: 'Ensure mobile responsiveness', source: 'ai' },
+        ],
+        never: [
+          { id: 'g-never-1', text: 'Use modals for complex forms', source: 'ai' },
+          { id: 'g-never-2', text: 'Auto-play media', source: 'ai' },
+        ],
       },
       aiAnalysis: {
         summary: 'This project aims to build a robust SaaS platform addressing key inefficiencies in current workflows. High potential but requires careful architecture.',
@@ -125,7 +131,7 @@ Output valid JSON strictly adhering to this structure:
 export async function generatePrd(projectContext: any): Promise<any> {
   try {
     const prompt = `You are a Principal Product Manager.
-Create a production-grade Product Requirements Document (PRD) markdown sections based on the following project context:
+Create a production-grade Product Requirements Document (PRD) markdown sections based on the following project context and project DNA directives:
 ${JSON.stringify(projectContext, null, 2)}
 
 Provide JSON matching:
@@ -187,11 +193,13 @@ ${JSON.stringify(projectContext, null, 2)}
 
 Output JSON strictly adhering to:
 {
-  "frontend": { "recommendation": "string", "rationale": "string" },
-  "backend": { "recommendation": "string", "rationale": "string" },
-  "database": { "recommendation": "string", "rationale": "string" },
+  "frontend": { "recommendation": "string", "rationale": "string", "isApproved": false },
+  "backend": { "recommendation": "string", "rationale": "string", "isApproved": false },
+  "database": { "recommendation": "string", "rationale": "string", "isApproved": false },
+  "auth": { "recommendation": "string", "rationale": "string", "isApproved": false },
+  "infrastructure": { "recommendation": "string", "rationale": "string", "isApproved": false },
   "integrations": [
-    { "name": "string", "rationale": "string" }
+    { "name": "string", "rationale": "string", "isApproved": false }
   ]
 }`;
 
@@ -204,12 +212,14 @@ Output JSON strictly adhering to:
   } catch (e: any) {
     console.info('[AI Service] Using rich mock fallback for Tech Plan (Reason:', e?.message || e, ')');
     return {
-      frontend: { recommendation: 'Next.js 15 (App Router)', rationale: 'Provides excellent performance, SEO, and developer experience for React applications.' },
-      backend: { recommendation: 'Next.js API Routes + Node.js', rationale: 'Simplifies infrastructure by co-locating backend logic with the frontend in a serverless environment.' },
-      database: { recommendation: 'MongoDB via Mongoose', rationale: 'Flexible document schema fits the dynamic nature of project intelligence and rapid iteration.' },
+      frontend: { recommendation: 'Next.js 15 (App Router)', rationale: 'Provides excellent performance, SEO, and developer experience for React applications.', isApproved: false },
+      backend: { recommendation: 'Next.js API Routes + Node.js', rationale: 'Simplifies infrastructure by co-locating backend logic with the frontend in a serverless environment.', isApproved: false },
+      database: { recommendation: 'MongoDB via Mongoose', rationale: 'Flexible document schema fits the dynamic nature of project intelligence and rapid iteration.', isApproved: false },
+      auth: { recommendation: 'Auth.js (NextAuth v5)', rationale: 'Standardized OAuth and credential authentication with session encryption.', isApproved: false },
+      infrastructure: { recommendation: 'Vercel + MongoDB Atlas', rationale: 'Zero-configuration edge deployments with globally managed cloud database.', isApproved: false },
       integrations: [
-        { name: 'Stripe', rationale: 'Industry standard for subscription billing and invoicing.' },
-        { name: 'SendGrid', rationale: 'Reliable transactional email delivery.' },
+        { name: 'Stripe', rationale: 'Industry standard for subscription billing and invoicing.', isApproved: false },
+        { name: 'SendGrid', rationale: 'Reliable transactional email delivery.', isApproved: false },
       ],
     };
   }
@@ -243,10 +253,10 @@ Return a JSON array of tasks strictly in this structure:
   } catch (e: any) {
     console.info('[AI Service] Using rich mock fallback for Tasks (Reason:', e?.message || e, ')');
     return [
-      { id: 'TASK-1', epic: 'Authentication', title: 'Implement JWT Auth', ownerRole: 'Backend Eng', priority: 'High', estimateDays: 3, status: 'Todo' },
-      { id: 'TASK-2', epic: 'Authentication', title: 'Build Login UI', ownerRole: 'Frontend Eng', priority: 'High', estimateDays: 2, status: 'Todo' },
-      { id: 'TASK-3', epic: 'Dashboard', title: 'Design DB Schema for Metrics', ownerRole: 'Backend Eng', priority: 'Medium', estimateDays: 1, status: 'Todo' },
-      { id: 'TASK-4', epic: 'Dashboard', title: 'Implement Chart Components', ownerRole: 'Frontend Eng', priority: 'Medium', estimateDays: 4, status: 'Todo' },
+      { id: 'TASK-1', epic: 'Authentication', title: 'Implement JWT Auth & Session Store', ownerRole: 'Backend Eng', priority: 'High', estimateDays: 3, status: 'Todo' },
+      { id: 'TASK-2', epic: 'Authentication', title: 'Build Responsive Auth Modal & Form State', ownerRole: 'Frontend Eng', priority: 'High', estimateDays: 2, status: 'Todo' },
+      { id: 'TASK-3', epic: 'Dashboard', title: 'Design Time-Series DB Schema for Metrics', ownerRole: 'Backend Eng', priority: 'Medium', estimateDays: 1, status: 'Todo' },
+      { id: 'TASK-4', epic: 'Dashboard', title: 'Implement Interactive Chart Components', ownerRole: 'Frontend Eng', priority: 'Medium', estimateDays: 4, status: 'Todo' },
     ];
   }
 }

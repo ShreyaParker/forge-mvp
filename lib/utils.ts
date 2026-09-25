@@ -5,19 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function calculateReadiness(project: any) {
+export function calculateReadiness(project: any): number {
+  if (!project) return 0;
   const attributes = [
-    project.basicInfo?.name,
-    project.basicInfo?.clientName,
-    project.basicInfo?.description,
-    project.brand?.personality,
-    project.brand?.colors,
-    project.product?.objective,
-    project.guardrails?.always,
-    project.aiAnalysis?.summary,
-    project.prd?.sections,
-    project.technicalPlan?.frontend,
-    project.tasks?.length > 0 ? true : undefined,
+    Boolean(project.basicInfo?.name?.trim?.()),
+    Boolean(project.basicInfo?.clientName?.trim?.()),
+    Boolean(project.basicInfo?.description?.trim?.()),
+    Boolean(project.brand?.personality && project.brand.personality.length > 0),
+    Boolean(project.brand?.colors && project.brand.colors.length > 0),
+    Boolean(project.product?.objective?.trim?.()),
+    Boolean(project.guardrails?.always && project.guardrails.always.length > 0),
+    Boolean(project.aiAnalysis?.summary?.trim?.()),
+    Boolean(project.prd?.sections && project.prd.sections.length > 0),
+    Boolean(project.technicalPlan?.frontend?.recommendation?.trim?.()),
+    Boolean(project.tasks && project.tasks.length > 0),
   ];
 
   const total = attributes.length;
