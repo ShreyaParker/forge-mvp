@@ -2,7 +2,10 @@ import mongoose from 'mongoose';
 import fs from 'node:fs';
 import path from 'node:path';
 import { calculateReadiness } from '../lib/utils';
-import Project, { normalizeProject } from '../models/Project';
+import Project from '../models/Project';
+import User from '../models/User';
+import Organization from '../models/Organization';
+import Membership from '../models/Membership';
 
 // Load .env.local if present
 const envLocalPath = path.resolve(process.cwd(), '.env.local');
@@ -26,11 +29,173 @@ async function seed() {
   await mongoose.connect(MONGODB_URI);
   console.log('Connected to MongoDB');
 
-  // Clear existing
+  // Clear existing collections
+  console.log('Clearing existing collections...');
   await Project.deleteMany({});
+  await User.deleteMany({});
+  await Organization.deleteMany({});
+  await Membership.deleteMany({});
+
+  // 1. Create Users
+  console.log('Creating users...');
+  const shreya = await User.create({
+    name: 'Shreya Parkar',
+    email: 'shreya@luminior.studio',
+    bio: 'Full Stack & AI Engineer leading architectural strategy and generative AI pipelines.',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    skills: [
+      { name: 'Next.js', level: 'Expert' },
+      { name: 'React', level: 'Expert' },
+      { name: 'Python', level: 'Proficient' },
+      { name: 'FastAPI', level: 'Proficient' },
+      { name: 'MongoDB', level: 'Proficient' },
+      { name: 'AI/LLM', level: 'Proficient' },
+    ],
+    gitIdentity: { username: 'shreyaparkar', provider: 'github' },
+  });
+
+  const alex = await User.create({
+    name: 'Alex Rivera',
+    email: 'alex@luminior.studio',
+    bio: 'Product Lead & Digital Strategist bridging business goals and system roadmaps.',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+    skills: [
+      { name: 'Product Strategy', level: 'Expert' },
+      { name: 'Market Research', level: 'Expert' },
+      { name: 'User Research', level: 'Proficient' },
+      { name: 'Roadmap Planning', level: 'Proficient' },
+    ],
+    gitIdentity: { username: 'alexrivera', provider: 'github' },
+  });
+
+  const marcus = await User.create({
+    name: 'Marcus Chen',
+    email: 'marcus@luminior.studio',
+    bio: 'Lead Developer & DevOps Specialist focused on resilient cloud infrastructure.',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+    skills: [
+      { name: 'Node.js', level: 'Expert' },
+      { name: 'TypeScript', level: 'Expert' },
+      { name: 'Docker', level: 'Expert' },
+      { name: 'AWS', level: 'Proficient' },
+      { name: 'Kubernetes', level: 'Working' },
+      { name: 'PostgreSQL', level: 'Proficient' },
+    ],
+    gitIdentity: { username: 'marcuschen', provider: 'github' },
+  });
+
+  console.log(`Created 3 users: ${shreya.name}, ${alex.name}, ${marcus.name}`);
+
+  // 2. Create Organizations
+  console.log('Creating organizations...');
+  const luminiorStudio = await Organization.create({
+    name: 'Luminior Studio',
+    slug: 'luminior-studio',
+    workspaceType: 'Agency',
+    teamSize: 7,
+    description: 'Elite AI & digital product engineering agency building next-generation web and intelligent systems.',
+    website: 'https://luminior.studio',
+    industry: 'Digital Product & AI Consultancy',
+    services: ['Web Dev', 'AI Apps', 'E-commerce', 'Cloud Architecture', 'Product Design'],
+    specializations: ['Generative AI Integration', 'High-Performance E-commerce', 'Full-Stack Architecture'],
+    techInventory: [
+      { name: 'Next.js', category: 'Frontend', approvedForProduction: true, notes: 'Primary App Router framework' },
+      { name: 'React', category: 'Frontend', approvedForProduction: true, notes: 'Core UI component architecture' },
+      { name: 'TypeScript', category: 'Frontend', approvedForProduction: true, notes: 'Strict typing across all layers' },
+      { name: 'Tailwind CSS', category: 'Frontend', approvedForProduction: true, notes: 'Design token utilities' },
+      { name: 'Node.js', category: 'Backend', approvedForProduction: true, notes: 'Serverless runtime & APIs' },
+      { name: 'FastAPI', category: 'Backend', approvedForProduction: true, notes: 'High-throughput Python microservices' },
+      { name: 'MongoDB', category: 'Database', approvedForProduction: true, notes: 'Atlas primary operational database' },
+      { name: 'Redis', category: 'Database', approvedForProduction: true, notes: 'In-memory caching & rate limiting' },
+      { name: 'Google Gemini', category: 'AI', approvedForProduction: true, notes: 'Multimodal vision & analysis models' },
+      { name: 'OpenAI', category: 'AI', approvedForProduction: true, notes: 'Reasoning & embedding pipelines' },
+      { name: 'Docker', category: 'DevOps', approvedForProduction: true, notes: 'Containerized staging environments' },
+      { name: 'Vercel', category: 'Cloud', approvedForProduction: true, notes: 'Edge deployment & global CDN' },
+      { name: 'Figma', category: 'Design', approvedForProduction: true, notes: 'Design systems and token specs' },
+    ],
+    apiInventory: [
+      { provider: 'Google Gemini', service: 'Gemini 2.5 Flash & Pro', status: 'Connected', environment: 'Production', notes: 'Core analysis engine' },
+      { provider: 'OpenAI', service: 'GPT-4o & text-embedding-3', status: 'Connected', environment: 'Production', notes: 'Reasoning & semantic search' },
+      { provider: 'Anthropic', service: 'Claude 3.5 Sonnet', status: 'Available', environment: 'Staging', notes: 'Alternative reasoning model' },
+      { provider: 'Stripe', service: 'Payment Processing', status: 'Connected', environment: 'Production', notes: 'Client billing and checkout handoff' },
+      { provider: 'Vercel', service: 'Edge Network Hosting', status: 'Connected', environment: 'Production', notes: 'Automated CI/CD deployments' },
+      { provider: 'MongoDB Atlas', service: 'Cloud M10 Cluster', status: 'Connected', environment: 'Production', notes: 'Persistent operational database' },
+    ],
+  });
+
+  const soloLab = await Organization.create({
+    name: 'Solo Lab',
+    slug: 'solo-lab',
+    workspaceType: 'Individual',
+    teamSize: 1,
+    description: 'Personal experimental laboratory for rapid prototyping and bespoke tools.',
+    website: 'https://sololab.dev',
+    industry: 'Software Research & Prototyping',
+    services: ['Rapid Prototyping', 'AI Experiments'],
+    specializations: ['Next.js MVPs', 'LLM Agents'],
+    techInventory: [
+      { name: 'Next.js', category: 'Frontend', approvedForProduction: true, notes: 'Single-page & SSR apps' },
+      { name: 'TypeScript', category: 'Frontend', approvedForProduction: true, notes: 'Type safety' },
+      { name: 'Tailwind CSS', category: 'Frontend', approvedForProduction: true, notes: 'Rapid UI prototyping' },
+      { name: 'Google Gemini', category: 'AI', approvedForProduction: true, notes: 'Agent reasoning' },
+    ],
+    apiInventory: [
+      { provider: 'Google Gemini', service: 'Gemini 2.5 Flash', status: 'Connected', environment: 'Development', notes: 'Rapid experimentation' },
+      { provider: 'GitHub API', service: 'GitHub Actions', status: 'Connected', environment: 'Development', notes: 'CI/CD runner' },
+    ],
+  });
+
+  console.log(`Created 2 organizations: ${luminiorStudio.name} (Agency), ${soloLab.name} (Individual)`);
+
+  // 3. Create Memberships
+  console.log('Creating memberships...');
+  await Membership.create({
+    userId: shreya._id,
+    organizationId: luminiorStudio._id,
+    role: 'Owner',
+    availability: 'Available',
+    customPermissions: [],
+  });
+
+  await Membership.create({
+    userId: alex._id,
+    organizationId: luminiorStudio._id,
+    role: 'Strategist',
+    availability: 'Partially Allocated',
+    customPermissions: [],
+  });
+
+  await Membership.create({
+    userId: marcus._id,
+    organizationId: luminiorStudio._id,
+    role: 'Developer',
+    availability: 'Available',
+    customPermissions: [],
+  });
+
+  // Shreya is also the Owner of Solo Lab
+  await Membership.create({
+    userId: shreya._id,
+    organizationId: soloLab._id,
+    role: 'Owner',
+    availability: 'Available',
+    customPermissions: [],
+  });
+
+  console.log('Created memberships for Luminior Studio and Solo Lab');
+
+  // 4. Attach Projects to Luminior Studio
+  console.log('Creating projects attached to Luminior Studio...');
+  const agencyTeam = [
+    { userId: shreya._id, role: 'Owner', assignedAt: new Date() },
+    { userId: alex._id, role: 'Strategist', assignedAt: new Date() },
+    { userId: marcus._id, role: 'Developer', assignedAt: new Date() },
+  ];
 
   const projects = [
     {
+      organizationId: luminiorStudio._id,
+      team: agencyTeam,
       basicInfo: {
         name: 'Nova Flagship Experience',
         clientName: 'Nova Fashion Studio',
@@ -153,6 +318,7 @@ async function seed() {
           epic: 'Storefront',
           title: 'Implement Next.js 15 App Shell & Theme Tokens',
           ownerRole: 'Frontend Eng',
+          assignedUserId: marcus._id.toString(),
           priority: 'High',
           estimateDays: 2,
           status: 'Done' as const,
@@ -162,6 +328,7 @@ async function seed() {
           epic: 'Storefront',
           title: 'Build Responsive Editorial Lookbook Grid',
           ownerRole: 'Frontend Eng',
+          assignedUserId: marcus._id.toString(),
           priority: 'High',
           estimateDays: 3,
           status: 'Done' as const,
@@ -171,6 +338,7 @@ async function seed() {
           epic: 'Checkout',
           title: 'Integrate Shopify Storefront Headless Cart',
           ownerRole: 'Full Stack',
+          assignedUserId: shreya._id.toString(),
           priority: 'High',
           estimateDays: 4,
           status: 'In Progress' as const,
@@ -180,6 +348,7 @@ async function seed() {
           epic: 'Checkout',
           title: 'Configure Stripe Express Checkout & Apple Pay',
           ownerRole: 'Backend Eng',
+          assignedUserId: shreya._id.toString(),
           priority: 'Medium',
           estimateDays: 2,
           status: 'Todo' as const,
@@ -189,6 +358,7 @@ async function seed() {
           epic: 'Infrastructure',
           title: 'Setup Vercel Edge Cache Invalidation Webhooks',
           ownerRole: 'DevOps',
+          assignedUserId: marcus._id.toString(),
           priority: 'Medium',
           estimateDays: 1,
           status: 'Todo' as const,
@@ -196,6 +366,8 @@ async function seed() {
       ],
     },
     {
+      organizationId: luminiorStudio._id,
+      team: agencyTeam,
       basicInfo: {
         name: 'Apex Fleet Telematics',
         clientName: 'Apex Logistics',
@@ -306,6 +478,7 @@ async function seed() {
           epic: 'Telemetry',
           title: 'Implement WebSocket Telemetry Ingestion Hub',
           ownerRole: 'Backend Eng',
+          assignedUserId: marcus._id.toString(),
           priority: 'High',
           estimateDays: 3,
           status: 'In Progress' as const,
@@ -315,6 +488,7 @@ async function seed() {
           epic: 'Map UI',
           title: 'Configure Mapbox GL Vector Cluster Layer',
           ownerRole: 'Frontend Eng',
+          assignedUserId: marcus._id.toString(),
           priority: 'High',
           estimateDays: 4,
           status: 'Todo' as const,
@@ -322,6 +496,8 @@ async function seed() {
       ],
     },
     {
+      organizationId: luminiorStudio._id,
+      team: agencyTeam,
       basicInfo: {
         name: 'Zeta Flow Engine',
         clientName: 'Zeta Tech',
@@ -408,8 +584,12 @@ async function seed() {
     await Project.create({ ...p, readinessScore: score });
   }
 
-  console.log('Database seeded successfully with Project DNA, Provenance, and Technical Decisions');
+  console.log(`Successfully seeded ${projects.length} projects linked to Luminior Studio!`);
+  console.log('Seed completed successfully.');
   await mongoose.disconnect();
 }
 
-seed().catch(console.error);
+seed().catch(err => {
+  console.error('Seed error:', err);
+  process.exit(1);
+});

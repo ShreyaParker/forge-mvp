@@ -1,6 +1,6 @@
 # Forge — System Architecture, Codebase Reference & Masterplan
 
-> **Document Version:** 1.1.0 (Build 1 Complete — Human-in-the-Loop & Project DNA)  
+> **Document Version:** 1.2.0 (Phase A Complete — Multi-Tenant Agency Foundation & Granular RBAC)  
 > **Last Updated:** September 2026  
 > **Repository:** [https://github.com/ShreyaParker/forge-mvp](https://github.com/ShreyaParker/forge-mvp)  
 > **Target Audience:** Engineering Leads, Full-Stack Developers, Product Architects, and AI Engineers
@@ -10,8 +10,8 @@
 ## Table of Contents
 1. [Executive Summary & Product Vision](#1-executive-summary--product-vision)
 2. [End-to-End System Architecture](#2-end-to-end-system-architecture)
-3. [Repository Directory Map](#3-repository-directory-map)
-4. [Data Layer & Domain Models](#4-data-layer--domain-models)
+3. [Multi-Tenant Data Layer & Domain Models](#3-multi-tenant-data-layer--domain-models)
+4. [Granular RBAC & Permissions Engine](#4-granular-rbac--permissions-engine)
 5. [AI Intelligence Engine (Gemini 2.5 Flash)](#5-ai-intelligence-engine-gemini-25-flash)
 6. [API Routes & Serverless Micro-Pipelines](#6-api-routes--serverless-micro-pipelines)
 7. [Frontend Architecture & UI Systems](#7-frontend-architecture--ui-systems)
@@ -24,37 +24,40 @@
 
 ## 1. Executive Summary & Product Vision
 
-**Forge** is an AI-powered Project Intelligence & Dev-Handoff platform designed for modern product agencies, engineering consultancies, and internal tech teams.
+**Forge** is an AI-powered Project Intelligence, Agency Operating System & Dev-Handoff platform designed for modern product agencies, engineering consultancies, and bespoke dev shops.
 
 ### The Problem
-Agencies lose hundreds of hours translating loose, unstructured client briefs (emails, meeting notes, PDFs, conversational wishlists) into actionable engineering artifacts. The transition from sales handoff to development kickoff frequently suffers from:
-- Misaligned brand guidelines and design constraints.
-- Unvetted technical architecture decisions made without engineering sign-off.
-- Missing context regarding competitor benchmarks and agency-specific directives.
-- Incomplete Product Requirements Documents (PRDs).
-- Disorganized task backlogs with arbitrary estimates.
-- Premature engineering starts that cause costly mid-sprint rewrites.
+Agencies lose hundreds of hours translating loose, unstructured client briefs (emails, meeting notes, PDFs, conversational wishlists) into actionable engineering artifacts. Furthermore, scaling agencies struggle with:
+- Managing multi-tenant workspace separation between different teams and client engagements.
+- Enforcing role-based permissions without rigid, hardcoded UI checks.
+- Tracking organization-wide tech inventory, approved production stacks, and API subscription health.
+- Assigning specific team members with appropriate skill proficiencies to project epics and tasks.
+- Maintaining continuous context across brand guidelines, architecture choices, and dev backlogs.
 
 ### The Solution
-Forge provides a vertical slice that ingests raw project briefs, executes multi-stage Gemini AI structuring routines, captures explicit **Project DNA**, enables **Human-in-the-Loop** refinement across all intelligence blocks, computes a live **Project Readiness Score (0–100%)**, and organizes intelligence across 4 interactive pillars:
-1. **Brand & Guardrails:** Brand voice, color palette tokens with provenance tags, typography, visual style, and structured "Always / Never" operational guardrails (`client` | `ai` | `human_edited`).
-2. **Product & PRD:** Project DNA (competitors, reference links with domain extraction, persistent agency instructions), target users, user journeys, core features, KPIs, and a full 6-section technical PRD.
-3. **Tech Architecture:** Interactive decision cards across 5 layers (Frontend, Backend, Database, Auth, Infrastructure) plus integrations, featuring human sign-off toggles and inline ADR editing.
-4. **Execution Board:** Epics, developer tasks, owner roles, priority flags, day estimates, "+ Add Task" per Epic column, inline task edits, and interactive Kanban statuses (`Todo` ➔ `In Progress` ➔ `Done`).
+Forge provides an integrated operating system that combines:
+1. **Multi-Tenant Foundation:** Dual workspace modes (`Agency` collaborative team with role hierarchies vs `Individual` single-operator workspace).
+2. **Granular RBAC:** Decoupled, permission-based access control matrix across 8 distinct agency roles.
+3. **Organization Intelligence Hub:** Centralized management of Agency Profiles, Team Member Skills, Approved Tech Stack, and Live API Inventory.
+4. **Project DNA & Context:** Market competitor benchmarking, clickable reference inspirations with domain extraction, and persistent prompt directives.
+5. **Human-in-the-Loop Intelligence:** Real-time editable operational guardrails with provenance badges (`CLIENT`, `AI`, `HUMAN EDITED`), 5-layer architecture sign-offs, and Epic-level dev execution board.
+6. **Mathematical Readiness Meter:** Live 11-point project completion metric (0–100%).
 
 ---
 
 ## 2. End-to-End System Architecture
 
-### High-Level Architecture Diagram
+### High-Level System Flowchart
 
 ```mermaid
 flowchart TD
     subgraph Client["Client Tier (Next.js 15 App Router / React 19)"]
-        A["Dashboard (app/page.tsx)"]
-        B["New Project Intake (app/projects/new/page.tsx)"]
+        WS["Workspace Switcher (components/WorkspaceSwitcher.tsx)"]
+        A["Scoped Dashboard (app/page.tsx)"]
+        B["Project Intake (app/projects/new/page.tsx)"]
         C["Project Workspace Shell (app/projects/[id]/page.tsx)"]
         D["Interactive Client Workspace (client-workspace.tsx)"]
+        ORG["Organization Intelligence Hub (app/organization/page.tsx)"]
         
         subgraph WorkspaceTabs["Workspace Modular Component System"]
             T1["Brand & Guardrails (components/BrandGuardrailsTab.tsx)"]
@@ -64,6 +67,14 @@ flowchart TD
             PB["Provenance Badges (components/ProvenanceBadge.tsx)"]
         end
         
+        subgraph OrgTabs["Organization Hub Tabs"]
+            O1["Overview & Profile"]
+            O2["Team Roster & Skills"]
+            O3["Tech Stack Inventory"]
+            O4["API & Subscriptions Monitor"]
+        end
+        
+        WS --> A
         C --> D
         D --> T1
         D --> T2
@@ -71,16 +82,30 @@ flowchart TD
         D --> T4
         T1 -.-> PB
         T2 -.-> PB
+        ORG --> O1
+        ORG --> O2
+        ORG --> O3
+        ORG --> O4
     end
 
     subgraph API["Backend API Layer (Next.js Serverless Route Handlers)"]
-        E["POST /api/projects - Create Intake"]
-        F["POST /api/projects/:id/analyze - Extract Intelligence"]
-        G["POST /api/projects/:id/prd - Generate PRD (with DNA)"]
-        H["POST /api/projects/:id/technical-plan - 5-Layer Stack Plan"]
-        I["POST /api/projects/:id/tasks - Dev Task Breakdown"]
-        J["PATCH /api/projects/:id - Granular Workspace Mutations"]
-        J1["PATCH /api/projects/:id/tasks - Legacy Status Toggle"]
+        AUTH["GET / POST /api/auth/session - Workspace Context"]
+        ORGS["GET / POST /api/organizations - Workspaces"]
+        ORG_ID["GET / PATCH /api/organizations/:id - Org Details"]
+        MEMBERS["GET / POST /api/organizations/:id/members - Roster"]
+        PROJS["GET / POST /api/projects - Scoped Projects"]
+        PROJ_MUT["PATCH /api/projects/:id - Granular Mutations"]
+        PROJ_DEL["DELETE /api/projects/:id - Scoped Delete"]
+        AI_PIPES["POST /api/projects/:id/[analyze|prd|technical-plan|tasks]"]
+    end
+
+    subgraph Security["Security & Access Control"]
+        SESS["Session Manager (lib/session.ts)"]
+        PERM["Granular RBAC Engine (lib/permissions.ts)"]
+        AUTH --> SESS
+        PROJS --> PERM
+        PROJ_MUT --> PERM
+        PROJ_DEL --> PERM
     end
 
     subgraph Services["Services & Core Business Logic"]
@@ -96,170 +121,128 @@ flowchart TD
         Q["Mongoose Dynamic Connector (lib/dbConnect.ts)"] --> P
     end
 
-    D -- "Trigger Extract Intelligence" --> F
-    D -- "Trigger Generate PRD" --> G
-    D -- "Trigger Generate Tech Plan" --> H
-    D -- "Trigger Generate Tasks" --> I
-    
-    T1 -- "Add / Delete Guardrails" --> J
-    T2 -- "Update DNA & Directives" --> J
-    T3 -- "Toggle Sign-Off / Edit Decision" --> J
-    T4 -- "Add / Edit / Delete Tasks" --> J
-    T4 -- "Toggle Kanban Status" --> J
-    B -- "Submit Brief" --> E
+    WS -- "Switch Active Org" --> AUTH
+    A -- "Fetch Scoped Projects" --> PROJS
+    B -- "Submit Brief" --> PROJS
+    T1 -- "Mutate Guardrails" --> PROJ_MUT
+    T2 -- "Update DNA & Directives" --> PROJ_MUT
+    T3 -- "Sign-Off / ADR Override" --> PROJ_MUT
+    T4 -- "Add / Edit / Delete Tasks" --> PROJ_MUT
+    D -- "Trigger AI Pipelines" --> AI_PIPES
+    ORG -- "Manage Org & Inventories" --> ORG_ID
+    ORG -- "Manage Team & Skills" --> MEMBERS
 
-    E --> Q
-    F --> K
-    G --> K
-    H --> K
-    I --> K
-    J --> Q
-    J1 --> Q
+    AUTH --> Q
+    ORGS --> Q
+    ORG_ID --> Q
+    MEMBERS --> Q
+    PROJS --> Q
+    PROJ_MUT --> Q
+    PROJ_DEL --> Q
+    AI_PIPES --> K
     K --> O
-    F --> Q
-    G --> Q
-    H --> Q
-    I --> Q
-```
-
-### Granular Workspace Mutation Protocol (`PATCH /api/projects/:id`)
-
-Forge supports granular, type-safe mutations without requiring full document replacement:
-
-```typescript
-// Sub-payload signatures:
-| { type: 'DNA_UPDATE', data: { competitors?, references?, persistentInstructions? } }
-| { type: 'GUARDRAILS_UPDATE', data: { always?, never? } }
-| { type: 'GUARDRAIL_ADD', data: { category: 'always' | 'never', text: string, source: 'client' | 'ai' | 'human_edited' } }
-| { type: 'GUARDRAIL_DELETE', data: { category: 'always' | 'never', id: string } }
-| { type: 'TECH_DECISION_TOGGLE', data: { layer: 'frontend' | 'backend' | 'database' | 'auth' | 'infrastructure', isApproved?: boolean, recommendation?: string, rationale?: string } }
-| { type: 'TECH_INTEGRATION_UPDATE', data: { integrations: ITechIntegration[] } }
-| { type: 'TASK_CREATE', data: { epic: string, title: string, ownerRole?: string, priority?: string, estimateDays?: number, status?: string } }
-| { type: 'TASK_UPDATE', data: { taskId: string, title?: string, ownerRole?: string, priority?: string, estimateDays?: number, status?: string, epic?: string } }
-| { type: 'TASK_DELETE', data: { taskId: string } }
-```
-
-Every mutation automatically triggers `calculateReadiness(project)` on the server before persisting.
-
----
-
-## 3. Repository Directory Map
-
-```text
-forge-mvp/
-├── .env.example                     # Environment template for developers
-├── .env.local                       # Local secrets (MongoDB URI, Gemini API key) [Git-Ignored]
-├── .gitignore                       # Rules preventing credentials & build artifacts leaking
-├── AGENTS.md                        # Next.js 15 Turbopack agent rules & conventions
-├── CLAUDE.md                        # Assistant context & agent instructions
-├── doc/                             # Technical documentation suite
-│   ├── ARCHITECTURE.md              # Complete codebase architecture, function reference & status
-│   ├── BUILD_1_PLAN.md              # Build 1 implementation plan & functional requirements
-│   └── MASTERPLAN.md                # Multi-phase roadmap, feature specs & delivery strategy
-├── PRD.md                           # Original Product Requirements Document
-├── README.md                        # Public-facing repository introduction & quickstart
-├── package.json                     # Dependency manifests & npm scripts
-├── tsconfig.json                    # Strict TypeScript configuration
-├── next.config.ts                   # Next.js 15 build configuration
-├── postcss.config.mjs               # PostCSS plugins
-│
-├── app/                             # Next.js App Router root
-│   ├── globals.css                  # Tailwind CSS v4 design tokens & base resets
-│   ├── layout.tsx                   # Root HTML shell, Inter font, global sticky navigation
-│   ├── page.tsx                     # Agency Dashboard (Project listing & readiness badges)
-│   ├── api/
-│   │   └── projects/
-│   │       ├── route.ts             # GET (list all normalized) & POST (create intake with default DNA)
-│   │       └── [id]/
-│   │           ├── route.ts         # GET (by id) & PATCH (granular mutations + score recalculation)
-│   │           ├── analyze/
-│   │           │   └── route.ts     # POST trigger: Extract Intelligence (Brand/Product/Guardrails)
-│   │           ├── prd/
-│   │           │   └── route.ts     # POST trigger: Generate PRD sections with DNA context
-│   │           ├── technical-plan/
-│   │           │   └── route.ts     # POST trigger: Generate 5-layer Tech Architecture Plan
-│   │           └── tasks/
-│   │               └── route.ts     # POST trigger: Generate Backlog; PATCH: Toggle task status
-│   └── projects/
-│       ├── new/
-│       │   └── page.tsx             # Interactive intake form for client brief
-│       └── [id]/
-│           ├── page.tsx             # Server Component: Fetch project, normalize, compute readiness
-│           ├── client-workspace.tsx # Orchestrator: State management, AI triggers & tab switching
-│           └── components/          # Modular Workspace UI Components (BUILD 1)
-│               ├── BrandGuardrailsTab.tsx # Tab 1: Colors, Style, Always/Never guardrails + Provenance
-│               ├── ProductPrdTab.tsx      # Tab 2: Project DNA (Competitors, References, Directives) & PRD
-│               ├── TechPlanTab.tsx        # Tab 3: 5 Decision Cards, Approve Toggles & Inline ADR Editing
-│               ├── TasksTab.tsx           # Tab 4: Epic Columns, Add Task, Inline Edits & Sprint Metrics
-│               └── ProvenanceBadge.tsx    # Reusable Provenance Badge (CLIENT, AI, HUMAN EDITED)
-│
-├── lib/                             # Shared utility singletons
-│   ├── dbConnect.ts                 # Dynamic Mongoose connection manager with runtime logging
-│   └── utils.ts                     # Tailwind class merge (cn) & 11-point calculateReadiness logic
-│
-├── models/                          # Database models
-│   └── Project.ts                   # Enhanced Mongoose Schema, IProject interface & normalizeProject
-│
-├── schemas/                         # Zod validation schemas
-│   └── aiAnalysis.ts                # Strict runtime schemas for Gemini JSON outputs & 5 tech layers
-│
-├── services/                        # Domain service layer
-│   └── ai.service.ts                # Gemini API prompt orchestration with DNA injection & fallbacks
-│
-└── scripts/                         # Operational & automated testing utilities
-    └── seed.ts                      # MongoDB seed script with rich test projects (Atlas/Local)
+    AI_PIPES --> Q
 ```
 
 ---
 
-## 4. Data Layer & Domain Models
+## 3. Multi-Tenant Data Layer & Domain Models
 
-### The Enhanced Project Schema (`models/Project.ts`)
-
+### 3.1 User (`models/User.ts`)
+Represents an individual team member or client collaborator:
 ```typescript
-export type ProvenanceSource = 'client' | 'ai' | 'human_edited';
-
-export interface IProjectReference {
+export interface IUserSkill {
   name: string;
-  url: string;
+  level: 'Beginner' | 'Working' | 'Proficient' | 'Expert';
+}
+
+export interface IUser extends Document {
+  name: string;
+  email: string; // unique, indexed
+  avatarUrl?: string;
+  bio?: string;
+  skills: IUserSkill[];
+  gitIdentity?: {
+    username: string;
+    provider: 'github' | 'gitlab';
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### 3.2 Organization (`models/Organization.ts`)
+Represents a collaborative agency or individual studio workspace:
+```typescript
+export interface ITechInventoryItem {
+  name: string;
+  category: 'Frontend' | 'Backend' | 'Database' | 'AI' | 'Cloud' | 'DevOps' | 'Design' | 'Other';
+  approvedForProduction: boolean;
   notes?: string;
 }
 
-export interface IProjectDNA {
-  competitors: string[];
-  references: IProjectReference[];
-  persistentInstructions: string;
+export interface IApiInventoryItem {
+  provider: string;
+  service: string;
+  status: 'Connected' | 'Available' | 'Not Connected' | 'Expiring';
+  environment: 'Development' | 'Staging' | 'Production';
+  notes?: string;
 }
 
-export interface IGuardrailItem {
-  id: string;
-  text: string;
-  source: ProvenanceSource;
-}
-
-export interface ITechPlanLayer {
-  recommendation: string;
-  rationale: string;
-  isApproved: boolean;
-}
-
-export interface ITechIntegration {
+export interface IOrganization extends Document {
   name: string;
-  rationale: string;
-  isApproved: boolean;
+  slug: string; // unique, indexed
+  workspaceType: 'Agency' | 'Individual';
+  description?: string;
+  website?: string;
+  industry?: string;
+  teamSize?: number;
+  services: string[];
+  specializations: string[];
+  techInventory: ITechInventoryItem[];
+  apiInventory: IApiInventoryItem[];
+  createdAt: Date;
+  updatedAt: Date;
 }
+```
 
-export interface IProjectTask {
-  id: string;
-  epic: string;
-  title: string;
-  ownerRole: string;
-  priority: string;
-  estimateDays: number;
-  status: 'Todo' | 'In Progress' | 'Done';
+### 3.3 Membership (`models/Membership.ts`)
+Decouples users from organizations to support multi-workspace memberships:
+```typescript
+export type OrganizationRole =
+  | 'Owner'
+  | 'Admin'
+  | 'Project Manager'
+  | 'Strategist'
+  | 'Designer'
+  | 'Developer'
+  | 'AI Engineer'
+  | 'Viewer';
+
+export type AvailabilityStatus = 'Available' | 'Partially Allocated' | 'Fully Booked';
+
+export interface IMembership extends Document {
+  userId: mongoose.Types.ObjectId; // ref: User, indexed
+  organizationId: mongoose.Types.ObjectId; // ref: Organization, indexed
+  role: OrganizationRole;
+  customPermissions: string[];
+  availability: AvailabilityStatus;
+  joinedAt: Date;
+}
+```
+
+### 3.4 Project (`models/Project.ts`)
+Bound to an organization with team allocation and assigned tasks:
+```typescript
+export interface IProjectTeamMember {
+  userId: mongoose.Types.ObjectId | string;
+  role: string;
+  assignedAt: Date;
 }
 
 export interface IProject extends Document {
+  organizationId: mongoose.Types.ObjectId; // ref: Organization, indexed, required
+  team: IProjectTeamMember[];
   basicInfo: {
     name: string;
     clientName: string;
@@ -304,7 +287,7 @@ export interface IProject extends Document {
     infrastructure?: ITechPlanLayer;
     integrations?: ITechIntegration[];
   };
-  tasks?: IProjectTask[];
+  tasks?: IProjectTask[]; // tasks carry optional assignedUserId
   readinessScore: number;
   status: 'Draft' | 'Analyzed' | 'Ready for Dev';
   createdAt: Date;
@@ -312,162 +295,141 @@ export interface IProject extends Document {
 }
 ```
 
-### Backward Compatibility & Normalization Engine
-To guarantee that older seed data or legacy documents with flat string arrays do not throw hydration or type errors, `models/Project.ts` exports:
-- **`normalizeProject(raw: any)`**: Transforms any raw MongoDB document or `.lean()` output into the full typed schema structure with empty array fallbacks and boolean approval flags.
-- **`normalizeGuardrailList(items, prefix)`**: Converts legacy string arrays `['Use WebP']` into structured objects `[{ id: 'always-1', text: 'Use WebP', source: 'ai' }]`.
-- **Mongoose `pre('init')` Hook**: Intercepts raw MongoDB document instantiation before schema type casting to prevent casting errors.
+---
 
-### Dynamic Connection Manager (`lib/dbConnect.ts`)
-```typescript
-async function dbConnect() {
-  if (cached.conn) return cached.conn;
+## 4. Granular RBAC & Permissions Engine
 
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/forge-mvp';
+### Permission Definitions (`lib/permissions.ts`)
+Instead of hardcoding role names in UI logic, Forge evaluates granular permission strings:
 
-  if (!cached.promise) {
-    cached.promise = mongoose.connect(uri, opts).then((m) => {
-      console.log('[dbConnect] Connected successfully to DB:', m.connection.name);
-      return m;
-    });
-  }
-  cached.conn = await cached.promise;
-  return cached.conn;
-}
+| Permission String | Description |
+| :--- | :--- |
+| `projects:create` | Create new client projects in workspace |
+| `projects:view` | View project list and workspace details |
+| `projects:edit` | Edit project briefs, basic info, and metadata |
+| `projects:delete` | Delete project records |
+| `briefs:edit` | Update raw client brief descriptions |
+| `ai:generate` | Trigger Gemini intelligence pipelines (PRD, Tasks, Tech) |
+| `prd:view` / `prd:edit` | View or edit Product Requirements Document sections |
+| `technical:view` / `technical:edit` | View stack or sign off architecture decisions |
+| `tasks:create` / `tasks:assign` / `tasks:update` | Add, reassign, or toggle task status |
+| `team:view` / `team:manage` | View member roster or invite/modify roles |
+| `tech:view` / `tech:manage` | View or update agency tech inventory |
+| `integrations:view` / `integrations:manage` | View or modify API subscription statuses |
+| `git:view` / `git:manage` | View connected git identities and repositories |
+| `settings:manage` | Update workspace profile and settings |
+
+### Role-to-Permission Mapping Matrix
+
+```text
+┌─────────────────┬────────────────────────────────────────────────────────────────────────┐
+│ Role            │ Granted Permissions                                                    │
+├─────────────────┼────────────────────────────────────────────────────────────────────────┤
+│ Owner           │ ALL PERMISSIONS (*)                                                    │
+│ Admin           │ All except workspace deletion / billing transfer                       │
+│ Project Manager │ projects:*, briefs:edit, prd:*, technical:view, tasks:*, team:view     │
+│ Strategist      │ projects:view, briefs:edit, ai:generate, prd:*, team:view               │
+│ Designer        │ projects:view, prd:view, tasks:update, team:view                       │
+│ Developer       │ projects:view, technical:*, tasks:update, git:*, team:view             │
+│ AI Engineer     │ projects:view, ai:generate, technical:*, tasks:update, git:*, team:view │
+│ Viewer          │ projects:view, prd:view, technical:view, team:view                     │
+└─────────────────┴────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 5. AI Intelligence Engine (Gemini 2.5 Flash)
 
-### SDK Architecture
-Uses `@google/genai` with `gemini-2.5-flash` model and structured JSON outputs:
-- **`generateAiAnalysis(brief)`**: Infers brand attributes, structured guardrails with `source: 'ai'`, product specs, and complexity analysis.
-- **`generatePrd(projectContext)`**: Ingests project basic info, product specs, guardrails, and **Project DNA persistent instructions** to craft 6 production-grade PRD sections.
-- **`generateTechnicalPlan(projectContext)`**: Generates recommendations across all 5 layers with `isApproved: false` by default, pending technical lead sign-off.
-- **`generateTasks(prdContext)`**: Deconstructs architecture and PRD into role-assigned sprint tickets.
-- **Fallback Mock Architecture**: If `GEMINI_API_KEY` is not present, all methods return rich, fully typed mock data.
+Uses the official `@google/genai` library with structured JSON schema outputs (`responseMimeType: 'application/json'`).
+
+### Multi-Stage Prompt Pipeline
+1. **Analyze Brief:** Extracts brand personality, color palette with provenance tags, visual style, product objectives, user journeys, operational guardrails (`always`/`never`), and complexity.
+2. **Generate PRD:** Ingests project basic info, product specs, guardrails, and **Project DNA persistent directives** to produce 6 markdown sections.
+3. **Generate Technical Plan:** Produces recommendations across 5 architecture layers (Frontend, Backend, Database, Auth, Infrastructure) with `isApproved: false` by default, awaiting human engineering sign-off.
+4. **Generate Tasks:** Deconstructs architecture and PRD into role-assigned tickets with day estimates.
+5. **Resilient Fallback Layer:** Returns high-fidelity mock data structures matching the exact Zod schema if API keys are absent or quotas are exceeded.
 
 ---
 
 ## 6. API Routes & Serverless Micro-Pipelines
 
-| Endpoint | Method | Purpose | Sub-Payload / Body | Response |
-| :--- | :---: | :--- | :--- | :--- |
-| `/api/projects` | `GET` | Fetch all projects | None | `Array<IProject>` (normalized) |
-| `/api/projects` | `POST` | Create intake document | `{ name, clientName, description, ... }` | `201 Created` with default DNA & Guardrails |
-| `/api/projects/[id]` | `GET` | Fetch single project | None | Normalized `IProject` |
-| `/api/projects/[id]` | `PATCH` | Execute granular workspace mutation | `{ type: string, data: any }` | Updated `IProject` + updated `readinessScore` |
-| `/api/projects/[id]/analyze` | `POST` | Run AI brief extraction | None | Brand, Product, Structured Guardrails, Analysis |
-| `/api/projects/[id]/prd` | `POST` | Generate PRD (with DNA context) | None | 6 Markdown PRD sections |
-| `/api/projects/[id]/technical-plan` | `POST` | Generate 5-Layer Stack Recommendation | None | Frontend, Backend, DB, Auth, Infra, Integrations |
-| `/api/projects/[id]/tasks` | `POST` | Generate Dev Task Backlog | None | Epics & Tasks; Status = `Ready for Dev` |
-| `/api/projects/[id]/tasks` | `PATCH` | Legacy task status update | `{ taskId, status }` | Updated `IProject` |
+### Authentication & Multi-Tenant Session
+- **`GET /api/auth/session`**: Returns active user, current organization, role, and granted permissions from cookie.
+- **`POST /api/auth/session`**: Sets or switches the active workspace context in the session cookie (`{ organizationId, userId }`).
+
+### Organization & Team Management
+- **`GET /api/organizations`**: Returns all workspaces accessible by the current user.
+- **`POST /api/organizations`**: Creates a new `Agency` or `Individual` organization.
+- **`GET /api/organizations/:id`**: Returns organization details, tech stack inventory, and API status inventory.
+- **`PATCH /api/organizations/:id`**: Updates agency profile, tech inventory approvals, and API subscriptions.
+- **`GET /api/organizations/:id/members`**: Returns team roster with roles, skill tags, and availability.
+- **`POST /api/organizations/:id/members`**: Adds/invites a user to the organization with assigned role.
+
+### Multi-Tenant Project Operations
+- **`GET /api/projects?orgId=:id`**: Returns projects strictly scoped to the active workspace.
+- **`POST /api/projects`**: Creates an intake record bound to the active `organizationId`.
+- **`GET /api/projects/:id`**: Fetches single project and normalizes legacy formats.
+- **`PATCH /api/projects/:id`**: Handles granular workspace mutations:
+  - `DNA_UPDATE`, `GUARDRAIL_ADD`, `GUARDRAIL_DELETE`, `TECH_DECISION_TOGGLE`, `TECH_INTEGRATION_UPDATE`, `TASK_CREATE`, `TASK_UPDATE`, `TASK_DELETE`, `TEAM_UPDATE`.
+- **`DELETE /api/projects/:id`**: Scoped deletion protected by `projects:delete` permission check.
+- **`POST /api/projects/:id/[analyze|prd|technical-plan|tasks]`**: Scoped AI generation endpoints.
 
 ---
 
 ## 7. Frontend Architecture & UI Systems
 
-### Monochromatic Zinc/Slate Design Language
-- **Backgrounds:** Ultra-dark slate tones (`bg-zinc-950`, `bg-zinc-900/40`, `bg-zinc-900/60`).
-- **Dividers:** Hairline borders (`border-zinc-800`, `border-zinc-700/60`).
-- **Typography:** Crisp white headers (`text-white`) with high-contrast neutral secondary text (`text-zinc-400`, `text-zinc-500`).
-- **Accent Signals:**
-  - `Ready for Dev` / `APPROVED`: Emerald accents (`bg-emerald-500/10 text-emerald-400 border-emerald-500/30`).
-  - `Analyzed` / `In Progress`: Electric blue accents (`bg-blue-500/10 text-blue-400 border-blue-500/30`).
-  - `PENDING SIGN-OFF`: Amber warning accents (`bg-amber-500/10 text-amber-400 border-amber-500/30`).
+### Monochromatic Zinc/Slate Design Tokens
+Built using **Tailwind CSS v4** with a sleek monochromatic dark theme:
+- **Backgrounds:** `bg-zinc-950`, `bg-zinc-900/40`, `bg-zinc-900/60`.
+- **Borders:** `border-zinc-800`, `border-zinc-700/60`.
+- **Accents:** Emerald (`Ready for Dev`, `APPROVED`), Blue (`Analyzed`, `In Progress`), Amber (`PENDING SIGN-OFF`).
 
-### Workspace Tab Components (`app/projects/[id]/components/`)
+### Global Header & Workspace Switcher (`components/WorkspaceSwitcher.tsx`)
+- Displayed in the sticky top navigation across all routes.
+- Shows current active workspace name with an `AGENCY` (purple) or `INDIVIDUAL` (zinc) badge.
+- Interactive dropdown allows instant switching between accessible organizations.
+- Direct link to the **Organization Intelligence Hub**.
 
-#### 1. Brand & Guardrails Tab (`BrandGuardrailsTab.tsx`)
-- Brand personality tags, visual style, brand tone, and typography tokens.
-- Color palette cards displaying hex values, preview blocks, and `ProvenanceBadge` tags.
-- **Operational Guardrails Grid:**
-  - "Always Do" and "Never Do" rule cards with provenance badges.
-  - Interactive inputs with provenance selector (`HUMAN EDITED`, `CLIENT`, `AI`).
-  - Real-time trash/delete triggers with instant UI update and database persistence.
+### Organization Intelligence Hub (`app/organization/page.tsx`)
+1. **Tab 1: Overview & Profile:** Core agency description, services tags, specializations, website link, and team headcount.
+2. **Tab 2: Team & Skills:** Team roster cards displaying avatar, bio, role badge, skill tags with proficiency pills (`Expert`, `Proficient`, `Working`), and availability status pills.
+3. **Tab 3: Tech Inventory:** Category-grouped cards (Frontend, Backend, Database, AI, DevOps, Cloud, Design) with toggle switches for `Approved for Production`.
+4. **Tab 4: API & Subscriptions:** Connectivity monitor for LLM providers (Gemini, OpenAI, Anthropic), cloud services (Vercel, AWS), and databases (Atlas, Redis) with real-time status pills (`Connected`, `Available`, `Not Connected`).
 
-#### 2. Product & PRD Tab (`ProductPrdTab.tsx`)
-- **Project DNA & Context Section:**
-  - Competitor landscape: Pill tags with instant remove (`×`) and inline addition input.
-  - Architecture & style reference links: Domain extraction (e.g. `linear.app`), clickable external links, benchmark notes, and deletion triggers.
-  - Agency Directives / System Instructions: Auto-saving persistent instructions textarea with real-time "Saved" feedback.
-- Product specs (Objective, Target Users, User Journeys, Core Features, KPIs).
-- Full 6-section rendered PRD with "Copy Markdown" button.
-
-#### 3. Tech Architecture Review Tab (`TechPlanTab.tsx`)
-- **5 Decision Cards:** Frontend, Backend, Database, Authentication & Security, Cloud Infrastructure & CDN.
-- **Decision Status:** Approved (green badge) vs Pending Sign-Off (amber badge).
-- **"Approve Decision" / "Revoke Sign-Off" Button:** Real-time sign-off progress bar (`X of 5 Layers Approved`).
-- **Inline "Edit Decision" Mode:** Form allowing tech leads to overwrite recommendation and rationale ADRs.
-- **Third-Party Integrations:** Configurable SaaS integrations with approval toggles and additions.
-
-#### 4. Dev Execution Board Tab (`TasksTab.tsx`)
-- Sprint metrics bar: Total backlog count, completed tasks, in-progress tasks, and total estimated engineer days.
-- Tasks grouped by Epic (`Storefront`, `Checkout`, `Telemetry`, etc.).
-- "+ Add Task" button on each Epic header and global "Add Custom Task" modal.
-- Inline editing mode for Title, Owner Role, Priority (`High`, `Medium`, `Low`), and Day Estimates.
-- Interactive status checkboxes cycling `Todo` ➔ `In Progress` ➔ `Done` with optimistic updates.
-- Task deletion with real-time backlog recalculation.
-
-#### 5. Provenance Badge (`ProvenanceBadge.tsx`)
-- Standardized provenance indicator across the workspace:
-  - `CLIENT` (Slate)
-  - `AI RECOMMENDATION` (Blue)
-  - `HUMAN EDITED` (Emerald)
+### Project Workspace Studio (`app/projects/[id]/client-workspace.tsx`)
+1. **Tab 1: Brand & Guardrails:** Brand palette cards with provenance badges (`CLIENT`, `AI`, `HUMAN EDITED`), typography, style, and interactive "Always / Never" guardrail controls.
+2. **Tab 2: Product & PRD:** Project DNA (competitors with add/remove, reference links with domain display, persistent directives) and 6-section PRD viewer.
+3. **Tab 3: Tech Architecture:** 5 architecture decision cards with "Approve Decision" / "Revoke Sign-Off" toggles, sign-off progress bar, and inline ADR editing mode.
+4. **Tab 4: Dev Execution Board:** Epic-grouped task columns, "+ Add Task" per Epic, global custom task modal, inline task editing, and status check cycling.
 
 ---
 
 ## 8. Readiness Score & State Machine
 
-### 11-Point Mathematical Readiness Engine (`lib/utils.ts`)
+Evaluates 11 distinct attributes across the project record:
 
-Evaluates the completeness of the project specification before engineering handoff:
+$$\text{Readiness Score} = \operatorname{round}\left(\frac{\sum \text{Filled Attributes}}{11} \times 100\right)$$
 
-```typescript
-export function calculateReadiness(project: any): number {
-  if (!project) return 0;
-  const attributes = [
-    Boolean(project.basicInfo?.name?.trim?.()),
-    Boolean(project.basicInfo?.clientName?.trim?.()),
-    Boolean(project.basicInfo?.description?.trim?.()),
-    Boolean(project.brand?.personality && project.brand.personality.length > 0),
-    Boolean(project.brand?.colors && project.brand.colors.length > 0),
-    Boolean(project.product?.objective?.trim?.()),
-    Boolean(project.guardrails?.always && project.guardrails.always.length > 0),
-    Boolean(project.aiAnalysis?.summary?.trim?.()),
-    Boolean(project.prd?.sections && project.prd.sections.length > 0),
-    Boolean(project.technicalPlan?.frontend?.recommendation?.trim?.()),
-    Boolean(project.tasks && project.tasks.length > 0),
-  ];
-
-  const total = attributes.length;
-  const filled = attributes.filter(Boolean).length;
-  return Math.round((filled / total) * 100);
-}
-```
+- Evaluates: Project Name, Client Name, Description, Brand Personality, Brand Colors, Product Objective, Always Guardrails, AI Analysis Summary, PRD Sections, Frontend Tech Recommendation, Tasks Backlog.
 
 ---
 
 ## 9. Development, Seeding & Environments
 
 ### Seed Data Suite (`scripts/seed.ts`)
-Populates MongoDB (Atlas or local) with 3 production-grade demo projects showcasing all Build 1 features:
-1. **Nova Flagship Experience** (`Ready for Dev`, 100% Readiness):
-   - Luxury fashion e-commerce flagship overhaul.
-   - Competitors: `SSENSE`, `Farfetch`, `Net-a-Porter`.
-   - References: `Aime Leon Dore`, `Acne Studios`.
-   - Structured guardrails with client, AI, and human provenance.
-   - 5-layer tech plan with partial human approvals and Shopify/Klaviyo integrations.
-   - 5 initial tasks under `Storefront`, `Checkout`, and `Infrastructure`.
-2. **Apex Fleet Telematics** (`Analyzed`, 100% Readiness):
-   - High-frequency IoT telematics dashboard for 500+ commercial delivery vehicles.
-   - Competitors: `Samsara`, `Geotab`, `Motive`.
-   - References: `Samsara Fleet UI`, `FlightAware Tracker`.
-   - Time-series MongoDB architecture, WebSockets, and Mapbox GL vector clustering.
-3. **Zeta Flow Engine** (`Draft`, 73% Readiness):
-   - Internal HR automation workflow engine with node-based canvas architecture.
-   - Competitors: `Zapier`, `Workato`, `Make.com`.
+Populates MongoDB Atlas with a complete multi-tenant dataset:
+- **3 Users:**
+  1. `Shreya Parkar` (Owner & AI/Full-Stack Lead)
+  2. `Alex Rivera` (Product Lead & Strategist)
+  3. `Marcus Chen` (Lead Dev & DevOps)
+- **2 Organizations:**
+  1. `Luminior Studio` (Agency workspace, 7 team members, 13 tech stack items, 6 connected API services)
+  2. `Solo Lab` (Individual workspace for rapid prototyping)
+- **4 Memberships:** Multi-workspace memberships linking users to organizations with roles and availability.
+- **3 Projects linked to Luminior Studio:**
+  1. `Nova Flagship Experience` (Ready for Dev, 100% readiness, full DNA, 5-layer tech decisions, 6 tasks assigned to team members).
+  2. `Apex Fleet Telematics` (Analyzed, 100% readiness, IoT telematics DNA, time-series DB, tasks).
+  3. `Zeta Flow Engine` (Draft, 73% readiness, HR workflow builder DNA).
 
 ---
 
@@ -475,15 +437,18 @@ Populates MongoDB (Atlas or local) with 3 production-grade demo projects showcas
 
 | Milestone Block | Status | Deliverables & Verification |
 | :--- | :---: | :--- |
-| **Next.js 15 & Turbopack Scaffolding** | ✅ Done | Zero build/lint errors, Next.js 16.3.6, React 19, TypeScript strict mode |
-| **Project DNA Schema** | ✅ Done | `competitors`, `references`, `persistentInstructions` in Mongoose and UI |
-| **Structured Guardrails & Provenance** | ✅ Done | `always`/`never` with IDs and `client` \| `ai` \| `human_edited` badges |
-| **5-Layer Architecture & Sign-Offs** | ✅ Done | Frontend, Backend, Database, Auth, Infra with "Approve Decision" toggles |
+| **Next.js 15 & Turbopack Scaffolding** | ✅ Done | Zero build/lint errors, Next.js 16.3.6, React 19, strict TypeScript |
+| **Multi-Tenant Models** | ✅ Done | `User`, `Organization`, `Membership`, and refactored `Project` |
+| **Granular RBAC Engine** | ✅ Done | `lib/permissions.ts` with 14 granular permissions across 8 roles |
+| **Workspace Session Context** | ✅ Done | `lib/session.ts` with cookie-backed active workspace switcher |
+| **Organization Intelligence Hub** | ✅ Done | 4-tab studio (Overview, Team & Skills, Tech Stack, API Inventory) |
+| **Project DNA & Context** | ✅ Done | `competitors`, `references` with domain extraction, `persistentInstructions` |
+| **Structured Guardrails & Provenance** | ✅ Done | `always`/`never` with IDs and `CLIENT` \| `AI` \| `HUMAN EDITED` badges |
+| **5-Layer Architecture Sign-Offs** | ✅ Done | Frontend, Backend, Database, Auth, Infra with approve/revoke toggles |
 | **Inline ADR Overrides** | ✅ Done | Inline editing of architecture recommendations and rationales |
-| **Dev Execution Board Power Tools** | ✅ Done | "+ Add Task" per Epic, custom task modal, inline title/role/estimate editing |
-| **Granular PATCH API Route** | ✅ Done | `DNA_UPDATE`, `GUARDRAIL_ADD/DELETE`, `TECH_DECISION_TOGGLE`, `TASK_CREATE/UPDATE/DELETE` |
-| **Atlas Database Seeding** | ✅ Done | Automated seed script populating 3 rich reference projects |
-| **Browser End-to-End Verification** | ✅ Done | Verified guardrail persistence, tech sign-off toggles, and task additions |
+| **Dev Execution Board Power Tools** | ✅ Done | "+ Add Task" per Epic, custom task modal, inline title/role/estimate edits |
+| **Multi-Tenant Scoped APIs** | ✅ Done | Projects strictly scoped to active `organizationId` |
+| **Atlas Database Seeding** | ✅ Done | Automated seed script populating users, organizations, and projects |
 
 ---
 
@@ -502,12 +467,16 @@ gantt
     Provenance Guardrails            :done, 2026-09, 2026-09
     5-Layer Architecture Sign-Offs   :done, 2026-09, 2026-09
     Epic Task Management & Edits     :done, 2026-09, 2026-09
-    section Phase 2: Power Tools
+    section Phase A: Multi-Tenant Foundation
+    User & Org Models                :done, 2026-09, 2026-09
+    Granular RBAC Engine             :done, 2026-09, 2026-09
+    Org Intelligence Hub (4 Tabs)    :done, 2026-09, 2026-09
+    Workspace Switcher Header        :done, 2026-09, 2026-09
+    section Phase B: Power Tools
     Export Package (MD / PDF)        :active, 2026-10, 2026-10
     Dashboard Search & Filters       :2026-10, 2026-10
     Multimodal Brief Intake (PDF)    :2026-11, 2026-11
-    section Phase 3: Ecosystem
+    section Phase C: Ecosystem
     Linear & GitHub Sync             :2026-12, 2027-01
     Figma Design Token Export        :2027-01, 2027-02
-    Multi-Tenant Auth & Teams        :2027-02, 2027-03
 ```

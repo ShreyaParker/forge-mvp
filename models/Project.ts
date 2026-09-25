@@ -32,17 +32,26 @@ export interface ITechIntegration {
   isApproved: boolean;
 }
 
+export interface IProjectTeamMember {
+  userId: mongoose.Types.ObjectId | string;
+  role: string;
+  assignedAt: Date;
+}
+
 export interface IProjectTask {
   id: string;
   epic: string;
   title: string;
   ownerRole: string;
+  assignedUserId?: string;
   priority: string;
   estimateDays: number;
   status: 'Todo' | 'In Progress' | 'Done';
 }
 
 export interface IProject extends Document {
+  organizationId: mongoose.Types.ObjectId;
+  team: IProjectTeamMember[];
   basicInfo: {
     name: string;
     clientName: string;
@@ -162,8 +171,29 @@ export function normalizeProject(raw: any): any {
   // Normalize Tasks
   project.tasks = Array.isArray(project.tasks) ? project.tasks : [];
 
+  // Normalize organizationId & team
+  if (project.organizationId) {
+    project.organizationId = project.organizationId.toString();
+  }
+  project.team = Array.isArray(project.team)
+    ? project.team.map((t: any) => ({
+        userId: t.userId?.toString ? t.userId.toString() : t.userId,
+        role: t.role || '',
+        assignedAt: t.assignedAt || new Date(),
+      }))
+    : [];
+
   return project;
 }
+
+const ProjectTeamSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    role: { type: String, required: true },
+    assignedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
 
 const GuardrailItemSchema = new Schema(
   {
@@ -198,6 +228,16 @@ const TechIntegrationSchema = new Schema(
 
 const ProjectSchema: Schema = new Schema(
   {
+    organizationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Organization',
+      required: true,
+      index: true,
+    },
+    team: {
+      type: [ProjectTeamSchema],
+      default: [],
+    },
     basicInfo: {
       name: { type: String, required: true },
       clientName: { type: String, required: true },
@@ -269,6 +309,7 @@ const ProjectSchema: Schema = new Schema(
         epic: { type: String, required: true },
         title: { type: String, required: true },
         ownerRole: { type: String, required: true },
+        assignedUserId: { type: Schema.Types.ObjectId, ref: 'User' },
         priority: { type: String, required: true },
         estimateDays: { type: Number, required: true },
         status: { type: String, enum: ['Todo', 'In Progress', 'Done'], default: 'Todo' },

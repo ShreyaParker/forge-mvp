@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '../../../../lib/dbConnect';
 import Project, { normalizeProject } from '../../../../models/Project';
 import { calculateReadiness } from '../../../../lib/utils';
+import { getSession, checkPermission } from '../../../../lib/session';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   await dbConnect();
@@ -22,6 +23,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const body = await req.json();
     const project = await Project.findById(id);
     if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    // Validate project access against active organization if project is assigned to an org
+    const session = await getSession();
+    if (session && project.organizationId) {
+      if (project.organizationId.toString() !== session.organizationId) {
+        return NextResponse.json(
+          { error: 'Forbidden: Project does not belong to the active workspace' },
+          { status: 403 }
+        );
+      }
+    }
 
     // Handle granular mutations by type
     if (body.type) {
@@ -138,18 +150,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             priority: priority || 'Medium',
             estimateDays: Number(estimateDays) || 1,
             status: status || 'Todo',
+            assignedUserId: body.data?.assignedUserId,
           });
           project.markModified('tasks');
           break;
         }
 
         case 'TASK_UPDATE': {
-          const { taskId, title, ownerRole, priority, estimateDays, status, epic } = body.data || {};
+          const { taskId, title, ownerRole, assignedUserId, priority, estimateDays, status, epic } = body.data || {};
           if (project.tasks && taskId) {
             const taskIndex = project.tasks.findIndex((t: any) => t.id === taskId);
             if (taskIndex !== -1) {
               if (title !== undefined) project.tasks[taskIndex].title = title.trim();
               if (ownerRole !== undefined) project.tasks[taskIndex].ownerRole = ownerRole;
+              if (assignedUserId !== undefined) project.tasks[taskIndex].assignedUserId = assignedUserId;
               if (priority !== undefined) project.tasks[taskIndex].priority = priority;
               if (estimateDays !== undefined) project.tasks[taskIndex].estimateDays = Number(estimateDays);
               if (status !== undefined) project.tasks[taskIndex].status = status;
@@ -165,6 +179,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           if (project.tasks && taskId) {
             project.tasks = project.tasks.filter((t: any) => t.id !== taskId);
             project.markModified('tasks');
+          }
+          break;
+        }
+
+        case 'TEAM_UPDATE': {
+          const { team } = body.data || {};
+          if (Array.isArray(team)) {
+            project.team = team;
+            project.markModified('team');
           }
           break;
         }
@@ -185,5 +208,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   } catch (error: any) {
     console.error('PATCH /api/projects/[id] error:', error);
     return NextResponse.json({ error: error?.message || 'Failed to update project' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  await dbConnect();
+  try {
+    const id = (await params).id;
+    const session = await getSession();
+    if (session && !checkPermission(session, 'projects:delete')) {
+      return NextResponse.json({ error: 'Forbidden: Insufficient permissions to delete project' }, { status: 403 });
+    }
+    const project = await Project.findById(id);
+    if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (session && project.organizationId && project.organizationId.toString() !== session.organizationId) {
+      return NextResponse.json({ error: 'Forbidden: Project does not belong to active workspace' }, { status: 403 });
+    }
+    await Project.findByIdAndDelete(id);
+    return NextResponse.json({ success: true, deletedId: id });
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Failed to delete project' }, { status: 500 });
   }
 }
